@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Transactions } from '../transactions/transaction.entity';
 import { Branchs } from 'src/branchs/branch.entity';
@@ -36,11 +37,13 @@ export class Users {
   })
   role: UserRole;
 
-  @OneToMany(() => Transactions, (t) => t.user)
+  @OneToMany(() => Transactions, (t) => t.user,{nullable: true, onDelete: 'SET NULL', eager: true })
   transactions: Transactions[];
 
-  @ManyToOne(() => Branchs, (branch) => branch.user)
+  @ManyToOne(() => Branchs, (branch) => branch.user,{nullable: true, onDelete: 'SET NULL', eager: true })
+  @JoinColumn({ name: 'branchId' })
   branch:Branchs;
+
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

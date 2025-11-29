@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Transactions } from '../transactions/transaction.entity';
 import { Users } from 'src/users/users.entity';
+import { Products } from 'src/products/product.entity';
 
 @Entity()
 export class Branchs {
@@ -25,6 +26,9 @@ export class Branchs {
 
   @OneToMany(() => Users, (user) => user.branch, {onDelete:'CASCADE'})
   user: Users[]
+
+  @OneToMany(() => Products, (p) => p.branch, {onDelete:'CASCADE'})
+  products:Products[]
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

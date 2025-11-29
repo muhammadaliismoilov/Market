@@ -1,9 +1,12 @@
+import { Branchs } from 'src/branchs/branch.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 export enum ProductType {
@@ -40,6 +43,13 @@ export class Products {
   })
   type: ProductType;
 
+  @ManyToOne(() => Branchs, (b) => b.products, { nullable: true, onDelete: 'SET NULL', eager: true })
+  @JoinColumn({name:'branchId'})
+  branch: Branchs[];
+
+  @Column({nullable:true, default:false})
+  onDelete : boolean;
+  
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
