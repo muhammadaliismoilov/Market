@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { UserRole } from '../users.entity';
 
 export class CreateUserDto {
@@ -8,6 +8,7 @@ export class CreateUserDto {
     description: 'Foydalanuvchining to‘liq ismi',
   })
   @IsString()
+  // @Min(3)
   @IsNotEmpty()
   fullName: string;
 
@@ -19,7 +20,18 @@ export class CreateUserDto {
   @Matches(/^998[0-9]{9}$/, {
     message: 'Telefon raqam 998 bilan boshlanishi va 12 xonali bo‘lishi kerak',
   })
+  @IsNotEmpty()
   phone: string;
+
+  @ApiProperty({
+    example: 'password123',
+    description: 'Foydalanuvchining paroli',
+  })
+  // @Min(6)
+  // @Max(10)
+  @IsString()
+  @IsNotEmpty()
+  password: string;
 
   @ApiProperty({
     example: 'cashier',
@@ -29,4 +41,9 @@ export class CreateUserDto {
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;
+
+  @ApiProperty({example:'branch-uuid', description:'Fillialning UUID si kiritiladi'})
+  @IsString()
+  @IsOptional()
+  branchId?: string;
 }

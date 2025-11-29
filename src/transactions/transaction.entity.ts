@@ -1,22 +1,22 @@
-import { Branch } from "src/branchs/branch.entity";
-import { Product } from "src/products/product.entity";
+import { Branchs } from "src/branchs/branch.entity";
+import { Products } from "src/products/product.entity";
 import { Users } from "src/users/users.entity";
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, UpdateDateColumn } from "typeorm";
 
 
 @Entity()
-export class Transaction {
+export class Transactions {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @ManyToOne(() => Users, (u) => u.transactions)
   user: Users;
 
-  @ManyToOne(() => Product)
-  product: Product;
+  @ManyToOne(() => Products)
+  product: Products;
 
-  @ManyToOne(() => Branch, (b) => b.transactions)
-  branch: Branch;
+  @ManyToOne(() => Branchs, (b) => b.transactions)
+  branch: Branchs;
 
   @Column("int")
   quantity: number;

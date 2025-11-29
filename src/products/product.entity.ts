@@ -12,7 +12,7 @@ export enum ProductType {
 }
 
 @Entity()
-export class Product {
+export class Products {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -28,7 +28,7 @@ export class Product {
   @Column('float')
   price: number;
 
-  @Column({ length: 13, unique: true })
+  @Column({ type:'varchar',length: 13, unique: true })
   barcode: number; // 13 xonali shtrix-kod
 
   @Column('float')
