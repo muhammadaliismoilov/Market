@@ -82,10 +82,10 @@ export class UserService {
     try {
       const { branchId } = dto;
 
-      const findBranch = await this.branchRepo.findOne({
-        where: { id: branchId },
-      });
-      if (!findBranch) throw new NotFoundException('Fillial topilmadi');
+      // const findBranch = await this.branchRepo.findOne({
+      //   where: { id: branchId },
+      // });
+      // if (!findBranch) throw new NotFoundException('Fillial topilmadi');
 
       const user = await this.findOne(id);
       if (!user) throw new NotFoundException('User topilmadi');
