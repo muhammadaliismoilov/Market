@@ -22,11 +22,10 @@ import { UserModule } from './users/users.module';
         synchronize: true,
       }),
     }),
+    BranchsModule,
     UserModule,
     ProductsModule,
-    BranchsModule,
     TransactionsModule,
   ],
 })
 export class AppModule {}
-
