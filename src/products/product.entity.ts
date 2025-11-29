@@ -22,10 +22,10 @@ export class Products {
   @Column()
   name: string;
 
-  @Column('int')
+  @Column('int',{nullable: true})
   count: number;
 
-  @Column('float')
+  @Column('float',{nullable: true})
   weight: number;
 
   @Column('float')
@@ -45,7 +45,7 @@ export class Products {
 
   @ManyToOne(() => Branchs, (b) => b.products, { nullable: true, onDelete: 'SET NULL', eager: true })
   @JoinColumn({name:'branchId'})
-  branch: Branchs[];
+  branch: Branchs;
 
   @Column({nullable:true, default:false})
   onDelete : boolean;

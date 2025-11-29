@@ -11,7 +11,6 @@ import { Users } from '../users/users.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Branchs } from 'src/branchs/branch.entity';
-import { log } from 'node:console';
 
 @Injectable()
 export class UserService {
@@ -79,29 +78,6 @@ export class UserService {
     }
   }
 
-  // async update(id: string, dto: UpdateUserDto) {
-  //   try {
-  //     const { branchId } = dto;
-
-  //     const findBranch = await this.branchRepo.findOne({
-  //       where: { id: branchId },
-  //     });
-  //     if (!findBranch) throw new NotFoundException('Fillial topilmadi');
-
-  //     const user = await this.findOne(id);
-  //     if (!user) throw new NotFoundException('User topilmadi');
-
-  //     const updated = Object.assign(user, dto);
-  //     console.log();
-      
-  //     return this.userRepo.save(updated);
-  //   } catch (error) {
-  //     if (error instanceof NotFoundException) throw error;
-  //     throw new InternalServerErrorException(
-  //       'Userni yangilashda serverda xatolik yuz berdi',
-  //     );
-  //   }
-  // }
 
   async update(id: string, dto: UpdateUserDto) {
   try {
