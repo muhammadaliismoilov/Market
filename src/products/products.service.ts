@@ -26,7 +26,7 @@ export class ProductsService {
     try {
       const product = this.productRepo.create({
         ...dto,
-        barcode: dto.barcode ? Number(dto.barcode) : undefined,
+        barcode: dto.barcode ? String(dto.barcode) : undefined,
       });
 
       if (dto.branchId) {
@@ -37,7 +37,7 @@ export class ProductsService {
         product.branch = branch;
       }
       if (!dto.barcode) {
-        product.barcode = crypto.randomInt(1000000000000, 9999999999999);
+        product.barcode = String(crypto.randomInt(1000000000000, 9999999999999));
       }
 
       return await this.productRepo.save(product);
@@ -127,7 +127,7 @@ export class ProductsService {
       });
 
       if (!product.barcode) {
-        product.barcode = crypto.randomInt(1000000000000, 9999999999999);
+        product.barcode = String(crypto.randomInt(1000000000000, 9999999999999));
       }
 
       return await this.productRepo.save(product);

@@ -22,17 +22,17 @@ export class Products {
   @Column()
   name: string;
 
-  @Column('int',{nullable: true})
+  @Column('int', { nullable: true })
   count: number;
 
-  @Column('float',{nullable: true})
+  @Column('float', { nullable: true })
   weight: number;
 
   @Column('float')
   price: number;
 
-  @Column({ type:'varchar',length: 13, unique: true })
-  barcode: number; // 13 xonali shtrix-kod
+  @Column({ type: 'varchar', length: 13, unique: true })
+  barcode: string; // 13 xonali shtrix-kod
 
   @Column('float')
   costPrice: number; // mahsulot tannarxi
@@ -43,13 +43,20 @@ export class Products {
   })
   type: ProductType;
 
-  @ManyToOne(() => Branchs, (b) => b.products, { nullable: true, onDelete: 'SET NULL', eager: true })
-  @JoinColumn({name:'branchId'})
+  @ManyToOne(() => Branchs, (b) => b.products, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    eager: true,
+  })
+  @JoinColumn({ name: 'branchId' })
   branch: Branchs;
 
-  @Column({nullable:true, default:false})
-  onDelete : boolean;
-  
+  @Column({ type: 'boolean', default: false })
+  isByWeight: boolean; // Kg bilan sotilsa true, dona bilan false
+
+  @Column({ nullable: true, default: false })
+  onDelete: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

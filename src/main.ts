@@ -6,6 +6,13 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({
+  origin: ['http://localhost:3000', 'http://localhost:5173'], // Frontend URL
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+
   app.useGlobalPipes(
   new ValidationPipe({
     whitelist: true,
@@ -29,7 +36,7 @@ async function bootstrap() {
         description: 'JWT tokenni kiriting: Bearer <token>',
         in: 'header',
       },
-      'JWT-auth',
+      'bearer',
     )
     .build();
   const document = require('@nestjs/swagger').SwaggerModule.createDocument(app, config);
