@@ -7,6 +7,7 @@ import { BranchsModule } from './branchs/branchs.module';
 import { UserModule } from './users/users.module';
 import { TransactionModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
+import { ReportsModule } from './reports/reports.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
@@ -29,6 +30,7 @@ import { AuthModule } from './auth/auth.module';
     UserModule,
     ProductsModule,
     TransactionModule,
+    ReportsModule
   ],
 })
 export class AppModule {}

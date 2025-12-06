@@ -61,15 +61,15 @@ export class Transactions {
   id: string;
 
   @ManyToOne(() => Users, (u) => u.transactions)
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'userId' })
   user: Users;
 
   @ManyToOne(() => Products)
-  @JoinColumn({ name: 'product_id' })
+  @JoinColumn({ name: 'productId' })
   product: Products;
 
   @ManyToOne(() => Branchs, (b) => b.transactions)
-  @JoinColumn({ name: 'branch_id' })
+  @JoinColumn({ name: 'branchId' })
   branch: Branchs;
 
   @Column({ type: 'varchar', unique: true })
@@ -110,9 +110,9 @@ export class Transactions {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updatedAt' })
   updatedAt: Date;
 }

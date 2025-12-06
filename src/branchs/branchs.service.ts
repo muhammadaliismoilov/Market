@@ -101,12 +101,9 @@ export class BranchsService {
       await this.branchRepo.remove(branch);
       return { message: 'Branch muvaffaqiyatli o‘chirildi' };
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      // if (error instanceof NotFoundException) throw error;
 
-      throw new InternalServerErrorException(
-        'Branchni o‘chirishda serverda xatolik yuz berdi',
-        error?.message,
-      );
+      throw error
     }
   }
 }

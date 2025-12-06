@@ -1,194 +1,345 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between } from 'typeorm'; // Like va Between import qilish
-import { Transactions, TransactionType, TransactionStatus } from './transaction.entity';
+import {
+  Transactions,
+  TransactionType,
+  TransactionStatus,
+} from './transaction.entity';
 import { Products } from '../products/product.entity';
 import { Users } from '../users/users.entity';
 import { Branchs } from '../branchs/branch.entity';
-import { CreateTransactionDto, TransactionScanDto, CompleteSessionDto, ReturnTransactionDto } from './dto/create-transaction.dto';
+import {
+  TransactionScanDto,
+  CompleteSessionDto,
+  ReturnTransactionDto,
+  // CreateUniversalTransactionDto,
+} from './dto/transaction.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { TransactionsGateway } from './transactions.gateway';
 
 @Injectable()
 export class TransactionService {
   constructor(
     @InjectRepository(Transactions)
     private readonly transactionRepo: Repository<Transactions>,
-    
+
     @InjectRepository(Products)
     private readonly productRepo: Repository<Products>,
-    
+
     @InjectRepository(Users)
     private readonly userRepo: Repository<Users>,
-    
+
     @InjectRepository(Branchs)
     private readonly branchRepo: Repository<Branchs>,
+
+    private readonly gateway: TransactionsGateway,
   ) {}
 
+
+  // async scanProduct(userId: string, scanDto: TransactionScanDto) {
+  //   try {
+  //     const { barcode } = scanDto;
+
+  //     const user = await this.userRepo.findOne({
+  //       where: { id: userId },
+  //       relations: ['branch'],
+  //     });
+
+  //     if (!user) {
+  //       throw new NotFoundException('Foydalanuvchi topilmadi');
+  //     }
+
+  //     // agar foydalanuvchida mavjud pending sessiya bo'lsa, uni qaytaramiz
+  //     const existingPending = await this.transactionRepo.findOne({
+  //       where: { user: { id: userId }, status: TransactionStatus.PENDING },
+  //       order: { createdAt: 'DESC' },
+  //     });
+  //     const sessionId = existingPending ? existingPending.sessionId : uuidv4();
+
+  //     const product = await this.productRepo.findOne({
+  //       where: { barcode },
+  //     });
+
+  //     if (!product) {
+  //       throw new NotFoundException(
+  //         `Barcode ${barcode} bo'yicha mahsulot topilmadi`,
+  //       );
+  //     }
+
+  //     // Omborda mahsulot borligini tekshirish
+  //     if (product.isByWeight) {
+  //       // Og'irlik bilan sotiladigan mahsulot
+  //       if (!product.weight || product.weight <= 0) {
+  //         throw new BadRequestException(
+  //           `${product.name} omborda yo'q (og'irligi: ${product.weight ?? 0} kg)`,
+  //         );
+  //       }
+  //     } else {
+  //       // Dona bilan sotiladigan mahsulot
+  //       if (!product.count || product.count <= 0) {
+  //         throw new BadRequestException(
+  //           `${product.name} omborda yo'q (soni: ${product.count ?? 0} dona)`,
+  //         );
+  //       }
+  //     }
+
+  //     return {
+  //       success: true,
+  //       product: {
+  //         id: product.id,
+  //         name: product.name,
+  //         barcode: product.barcode,
+  //         price: product.price,
+  //         isByWeight: product.isByWeight,
+  //         availableCount: product.count,
+  //         availableWeight: product.weight,
+  //         type: product.type,
+  //       },
+  //       sessionId,
+  //       message: `${product.name} - ${product.price} so'm`,
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
+  // Mahsulot skanerlandi, buyurtma vaqtincha yaratiladi va tizimga xabar ketadi.
+ 
+ 
+   // Barcode skanerlash
+  
+  
+  
+    // Barcode skanerlash
+  //  async scanProduct(userId: string, scanDto: TransactionScanDto) {
+  //   try {
+  //     const { barcode,  quantity, weight, notes } = scanDto;
+
+  //     const user = await this.userRepo.findOne({
+  //       where: { id: userId },
+  //       relations: ['branch'],
+  //     });
+  //     if (!user || !user.branch) {
+  //       throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
+  //     }
+
+  //     // agar client sessionId yubormagan bo'lsa — avvalgi pending sessiyani topamiz, bo'lmasa yangi yaratamiz
+  //     const usedSessionId =
+  //       // sessionId ??
+  //       (await (async (): Promise<string> => {
+  //         const pending = await this.transactionRepo.findOne({
+  //           where: { user: { id: userId }, status: TransactionStatus.PENDING },
+  //           order: { createdAt: 'DESC' },
+  //         });
+  //         return pending ? pending.sessionId : uuidv4();
+  //       })());
+
+  //     const product = await this.productRepo.findOne({ where: { barcode } });
+  //     if (!product) throw new NotFoundException(`Barcode ${barcode} bo'yicha mahsulot topilmadi`);
+
+  //     let finalQuantity = 0;
+  //     let finalWeight = 0;
+  //     let totalPrice = 0;
+
+  //     if (product.isByWeight) {
+  //       if (!weight || weight <= 0) {
+  //         throw new BadRequestException(`${product.name} uchun og‘irlik kiritilishi kerak.`);
+  //       }
+  //       if (!product.weight || product.weight < weight) {
+  //         throw new BadRequestException(`${product.name} uchun omborda yetarli kg yo‘q. Mavjud: ${product.weight || 0} kg`);
+  //       }
+  //       finalWeight = weight;
+  //       totalPrice = finalWeight * product.price;
+  //       product.weight -= finalWeight;
+  //     } else {
+  //       const q = quantity ?? 1;
+  //       if (!q || q <= 0) {
+  //         throw new BadRequestException(`${product.name} uchun dona soni kiritilishi kerak.`);
+  //       }
+  //       if (!product.count || product.count < q) {
+  //         throw new BadRequestException(`${product.name} uchun omborda yetarli dona yo‘q. Mavjud: ${product.count || 0} dona`);
+  //       }
+  //       finalQuantity = q;
+  //       totalPrice = finalQuantity * product.price;
+  //       product.count -= finalQuantity;
+  //     }
+
+  //     if ((product.isByWeight && product.weight <= 0) || (!product.isByWeight && product.count <= 0)) {
+  //       product.onDelete = true;
+  //     }
+  //     await this.productRepo.save(product);
+
+  //     const transactionNumber = await this.generateTransactionNumber();
+  //     const tx = new Transactions();
+  //     tx.user = user;
+  //     tx.product = product;
+  //     tx.branch = user.branch;
+  //     tx.transactionNumber = transactionNumber;
+  //     tx.barcode = barcode;
+  //     tx.quantity = finalQuantity;
+  //     tx.weight = finalWeight;
+  //     tx.unitPrice = product.price;
+  //     tx.totalPrice = totalPrice;
+  //     tx.type = TransactionType.SALE;
+  //     tx.status = TransactionStatus.PENDING;
+  //     tx.sessionId = usedSessionId;
+  //     tx.notes = notes ?? '';
+
+  //     await this.transactionRepo.save(tx);
+
+  //     // compute pending totals and emit
+  //     const pending = await this.transactionRepo.find({
+  //       where: { sessionId: usedSessionId, status: TransactionStatus.PENDING },
+  //     });
+  //     const sessionTotal = pending.reduce((s, p) => s + p.totalPrice, 0);
+  //     const itemsCount = pending.length;
+
+  //     this.gateway.emitSessionUpdated(
+  //       tx.sessionId,
+  //       user.branch?.id,
+  //       user.id,
+  //       { total: sessionTotal, itemsCount },
+  //       {
+  //         id: tx.id,
+  //         transactionNumber: tx.transactionNumber,
+  //         productId: product.id,
+  //         productName: product.name,
+  //         barcode: tx.barcode,
+  //         quantity: tx.quantity,
+  //         weight: tx.weight,
+  //         unitPrice: tx.unitPrice,
+  //         totalPrice: tx.totalPrice,
+  //         createdAt: tx.createdAt,
+  //       },
+  //     );
+
+  //     return {
+  //       success: true,
+  //       sessionId: tx.sessionId,
+  //       transaction: {
+  //         id: tx.id,
+  //         transactionNumber: tx.transactionNumber,
+  //         productName: product.name,
+  //         barcode: tx.barcode,
+  //         quantity: tx.quantity,
+  //         weight: tx.weight,
+  //         unitPrice: tx.unitPrice,
+  //         totalPrice: tx.totalPrice,
+  //       },
+  //       totals: { total: sessionTotal, itemsCount },
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
   // Barcode skanerlash
-  async scanProduct(userId: string, scanDto: TransactionScanDto) {
-    try {
-      const { barcode, sessionId } = scanDto;
-
-      const user = await this.userRepo.findOne({ 
-        where: { id: userId },
-        relations: ['branch']
-      });
-
-      if (!user) {
-        throw new NotFoundException('Foydalanuvchi topilmadi');
-      }
-
-      const product = await this.productRepo.findOne({ 
-        where: { barcode }
-      });
-
-      if (!product) {
-        throw new NotFoundException(`Barcode ${barcode} bo'yicha mahsulot topilmadi`);
-      }
-
-      // Omborda mahsulot borligini tekshirish
-      if (product.isByWeight) {
-        if (!product.weight || product.weight <= 0) {
-          throw new BadRequestException(`${product.name} omborda yo'q (og'irligi: ${product.weight} kg)`);
-        }
-      } else {
-        if (!product.count || product.count <= 0) {
-          throw new BadRequestException(`${product.name} omborda yo'q (soni: ${product.count} dona)`);
-        }
-      }
-
-      return {
-        success: true,
-        product: {
-          id: product.id,
-          name: product.name,
-          barcode: product.barcode,
-          price: product.price,
-          isByWeight: product.isByWeight,
-          availableCount: product.count,
-          availableWeight: product.weight,
-          type: product.type,
-        },
-        sessionId: sessionId || uuidv4(),
-        message: `${product.name} - ${product.price} so'm`,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
- async createTransaction(userId: string, createDto: CreateTransactionDto) {
+async scanProduct(userId: string, scanDto: TransactionScanDto) {
   try {
-    const { barcode, quantity, weight, sessionId, notes } = createDto;
+    const { barcode, quantity, weight, notes } = scanDto;
 
-    const user = await this.userRepo.findOne({ 
+    const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['branch']
+      relations: ['branch'],
     });
-
     if (!user || !user.branch) {
       throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
     }
 
-    const product = await this.productRepo.findOne({ 
-      where: { barcode }
-    });
+    // Avvalgi pending sessiyani topish yoki yangisini yaratish
+    const usedSessionId =
+      (await (async (): Promise<string> => {
+        const pending = await this.transactionRepo.findOne({
+          where: { user: { id: userId }, status: TransactionStatus.PENDING },
+          order: { createdAt: 'DESC' },
+        });
+        return pending ? pending.sessionId : uuidv4();
+      })());
 
-    if (!product) {
-      throw new NotFoundException('Mahsulot topilmadi');
-    }
+    const product = await this.productRepo.findOne({ where: { barcode } });
+    if (!product) throw new NotFoundException(`Barcode ${barcode} bo'yicha mahsulot topilmadi`);
 
-    let finalQuantity: number | null = null;
-    let finalWeight: number | null = null;
+    let finalQuantity = 0;
+    let finalWeight = 0;
     let totalPrice = 0;
 
     if (product.isByWeight) {
       if (!weight || weight <= 0) {
-        throw new BadRequestException('Og\'irlik kiritilishi shart');
-      }
-      if (!product.weight || product.weight < weight) {
-        throw new BadRequestException(
-          `Omborda yetarli mahsulot yo'q. Mavjud: ${product.weight || 0} kg, Talab: ${weight} kg`
-        );
+        throw new BadRequestException(`${product.name} uchun og‘irlik kiritilishi kerak.`);
       }
       finalWeight = weight;
-      totalPrice = weight * product.price;
+      totalPrice = finalWeight * product.price;
     } else {
-      if (!quantity || quantity <= 0) {
-        throw new BadRequestException('Son kiritilishi shart');
+      const q = quantity ?? 1;
+      if (!q || q <= 0) {
+        throw new BadRequestException(`${product.name} uchun dona soni kiritilishi kerak.`);
       }
-      if (!product.count || product.count < quantity) {
-        throw new BadRequestException(
-          `Omborda yetarli mahsulot yo'q. Mavjud: ${product.count || 0} dona, Talab: ${quantity} dona`
-        );
-      }
-      finalQuantity = quantity;
-      totalPrice = quantity * product.price;
+      finalQuantity = q;
+      totalPrice = finalQuantity * product.price;
     }
 
     const transactionNumber = await this.generateTransactionNumber();
 
-    const transaction = new Transactions();
-    transaction.user = user;
-    transaction.product = product;
-    transaction.branch = user.branch;
-    transaction.transactionNumber = transactionNumber;
-    transaction.barcode = barcode;
-    transaction.quantity = finalQuantity ?? 0;
-    transaction.weight = finalWeight ?? 0;
-    transaction.unitPrice = product.price;
-    transaction.totalPrice = totalPrice;
-    transaction.type = TransactionType.SALE;
-    transaction.status = TransactionStatus.PENDING;
-    transaction.sessionId = sessionId || uuidv4();
-    transaction.notes = notes ?? '';
+    const tx = new Transactions();
+    tx.user = user;
+    tx.product = product;
+    tx.branch = user.branch;
+    tx.transactionNumber = transactionNumber;
+    tx.barcode = barcode;
+    tx.quantity = finalQuantity;
+    tx.weight = finalWeight;
+    tx.unitPrice = product.price;
+    tx.totalPrice = totalPrice;
+    tx.type = TransactionType.SALE;
+    tx.status = TransactionStatus.PENDING;
+    tx.sessionId = usedSessionId;
+    tx.notes = notes ?? '';
 
-    await this.transactionRepo.save(transaction);
+    await this.transactionRepo.save(tx);
 
-    // Mahsulot sonini kamaytirish
-    if (product.isByWeight && finalWeight) {
-      product.weight = (product.weight || 0) - finalWeight;
-    } else if (finalQuantity) {
-      product.count = (product.count || 0) - finalQuantity;
-    }
+    const pending = await this.transactionRepo.find({
+      where: { sessionId: usedSessionId, status: TransactionStatus.PENDING },
+    });
 
-    if (((product.count !== null && product.count !== undefined) && product.count <= 0) || 
-        ((product.weight !== null && product.weight !== undefined) && product.weight <= 0)) {
-      product.onDelete = true;
-    }
-
-    await this.productRepo.save(product);
+    const sessionTotal = pending.reduce((s, p) => s + p.totalPrice, 0);
+    const itemsCount = pending.length;
 
     return {
       success: true,
+      sessionId: tx.sessionId,
       transaction: {
-        id: transaction.id,
-        transactionNumber: transaction.transactionNumber,
+        id: tx.id,
+        transactionNumber: tx.transactionNumber,
         productName: product.name,
-        quantity: finalQuantity || 0,
-        weight: finalWeight || 0,
-        unitPrice: product.price,
-        totalPrice,
-        sessionId: transaction.sessionId,
+        barcode: tx.barcode,
+        quantity: tx.quantity,
+        weight: tx.weight,
+        unitPrice: tx.unitPrice,
+        totalPrice: tx.totalPrice,
       },
-      message: 'Tranzaksiya muvaffaqiyatli yaratildi',
+      totals: { total: sessionTotal, itemsCount },
     };
   } catch (error) {
     throw error;
   }
 }
 
-  // Sessiya tranzaksiyalari
+
   async getSessionTransactions(userId: string, sessionId: string) {
     try {
       const transactions = await this.transactionRepo.find({
-        where: { 
+        where: {
           sessionId,
           status: TransactionStatus.PENDING,
-          user: { id: userId }
+          user: { id: userId },
         },
         relations: ['product', 'user', 'branch'],
-        order: { createdAt: 'ASC' }
+        order: { createdAt: 'ASC' },
       });
 
       const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
@@ -196,7 +347,7 @@ export class TransactionService {
       return {
         success: true,
         sessionId,
-        transactions: transactions.map(t => ({
+        transactions: transactions.map((t) => ({
           id: t.id,
           transactionNumber: t.transactionNumber,
           productName: t.product.name,
@@ -223,102 +374,179 @@ export class TransactionService {
   }
 
   // Sessiyani tugatish
-  async completeSession(userId: string, completeDto: CompleteSessionDto) {
-    try {
-      const { sessionId, notes } = completeDto;
+  // async completeSession(userId: string, completeDto: CompleteSessionDto) {
+  //   try {
+  //     const { sessionId, notes } = completeDto;
 
-      const transactions = await this.transactionRepo.find({
-        where: { 
-          sessionId,
-          status: TransactionStatus.PENDING,
-          user: { id: userId }
-        }
+  //     const transactions = await this.transactionRepo.find({
+  //       where: {
+  //         sessionId,
+  //         status: TransactionStatus.PENDING,
+  //         user: { id: userId },
+  //       },
+  //     });
+
+  //     if (transactions.length === 0) {
+  //       throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
+  //     }
+
+  //     for (const transaction of transactions) {
+  //       transaction.status = TransactionStatus.COMPLETED;
+  //       if (notes) {
+  //         transaction.notes = notes;
+  //       }
+  //       await this.transactionRepo.save(transaction);
+  //     }
+
+  //     // after completing all transactions in session
+  //     const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+
+  //     // emit completed event
+  //     this.gateway.emitSessionCompleted(sessionId, transactions[0]?.branch?.id, userId, {
+  //       totalSum,
+  //       totalTransactions: transactions.length,
+  //     });
+
+  //     return {
+  //       success: true,
+  //       message: "To'lov muvaffaqiyatli amalga oshirildi",
+  //       sessionId,
+  //       totalTransactions: transactions.length,
+  //       totalSum,
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
+
+  // Sessiyani tugatish — shu yerda real mahsulot kamayadi
+async completeSession(userId: string, completeDto: CompleteSessionDto) {
+  try {
+    const { sessionId, notes } = completeDto;
+
+    const transactions = await this.transactionRepo.find({
+      where: {
+        sessionId,
+        status: TransactionStatus.PENDING,
+        user: { id: userId },
+      },
+      relations: ['product'],
+    });
+
+    if (transactions.length === 0) {
+      throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
+    }
+
+    for (const transaction of transactions) {
+      const product = await this.productRepo.findOne({
+        where: { id: transaction.product.id },
       });
 
-      if (transactions.length === 0) {
-        throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
-      }
+      if (!product) continue;
 
-      for (const transaction of transactions) {
-        transaction.status = TransactionStatus.COMPLETED;
-        if (notes) {
-          transaction.notes = notes;
+      if (product.isByWeight) {
+        if (!product.weight || product.weight < transaction.weight) {
+          throw new BadRequestException(
+            `${product.name} uchun omborda yetarli kg yo‘q. Mavjud: ${product.weight || 0} kg`
+          );
         }
-        await this.transactionRepo.save(transaction);
+        product.weight -= transaction.weight;
+      } else {
+        if (!product.count || product.count < transaction.quantity) {
+          throw new BadRequestException(
+            `${product.name} uchun omborda yetarli dona yo‘q. Mavjud: ${product.count || 0} dona`
+          );
+        }
+        product.count -= transaction.quantity;
       }
 
-      const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+      if ((product.isByWeight && product.weight <= 0) || (!product.isByWeight && product.count <= 0)) {
+        product.onDelete = true;
+      }
 
-      return {
-        success: true,
-        message: 'To\'lov muvaffaqiyatli amalga oshirildi',
-        sessionId,
-        totalTransactions: transactions.length,
-        totalSum,
-      };
-    } catch (error) {
-      throw error;
+      await this.productRepo.save(product);
+
+      transaction.status = TransactionStatus.COMPLETED;
+      if (notes) transaction.notes = notes;
+      await this.transactionRepo.save(transaction);
     }
+
+    const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+
+    return {
+      success: true,
+      message: "To'lov amalga oshirildi",
+      sessionId,
+      totalTransactions: transactions.length,
+      totalSum,
+    };
+  } catch (error) {
+    throw error;
   }
+}
+
+
 
   // Mahsulotni qaytarish
+  // transactionNumber va reason orqali qaytarish tranzaksiyasi yaratadi
+  // Ombordagi mahsulotni qaytaradi va mijozga refund summasini qaytaradi
   async returnProduct(userId: string, returnDto: ReturnTransactionDto) {
     try {
-      const { barcode, transactionNumber, quantity, weight, reason } = returnDto;
+      const { transactionNumber, reason } = returnDto;
 
+      // 1. Asl sotuv tranzaksiyasini topish
       const originalTransaction = await this.transactionRepo.findOne({
-        where: { 
+        where: {
           transactionNumber,
-          barcode,
           type: TransactionType.SALE,
-          status: TransactionStatus.COMPLETED
+          status: TransactionStatus.COMPLETED,
         },
-        relations: ['product', 'user', 'branch']
+        relations: ['product', 'user', 'branch'],
       });
 
       if (!originalTransaction) {
-        throw new NotFoundException('Tranzaksiya topilmadi yoki qaytarib bo\'lmaydi');
+        throw new NotFoundException(
+          "Tranzaksiya topilmadi yoki qaytarib bo'lmaydi",
+        );
       }
 
-      const product = await this.productRepo.findOne({ 
-        where: { barcode }
+      // 2. Mahsulotni topish va omborda qaytarish
+      const product = await this.productRepo.findOne({
+        where: { id: originalTransaction.product.id },
       });
 
       if (!product) {
         throw new NotFoundException('Mahsulot topilmadi');
       }
 
+      // 3. Qaytarish summasini hisoblash
+      // Agar og'irlik bilan sotilgan bo'lsa weight ni, aks holda quantity ni qaytaradi
       let returnQuantity = 0;
       let returnWeight = 0;
-      let returnPrice = 0;
+      let refundAmount = 0;
 
       if (product.isByWeight) {
-        if (!weight || weight <= 0) {
-          throw new BadRequestException('Qaytariladigan og\'irlik kiritilishi shart');
-        }
-        if (weight > originalTransaction.weight) {
-          throw new BadRequestException(
-            `Qaytariladigan og\'irlik sotilgan og\'irlikdan oshib ketdi. Sotilgan: ${originalTransaction.weight} kg`
-          );
-        }
-        returnWeight = weight;
-        returnPrice = weight * originalTransaction.unitPrice;
+        returnWeight = originalTransaction.weight;
+        refundAmount = returnWeight * originalTransaction.unitPrice;
+        product.weight += returnWeight; // omborga qaytarish
       } else {
-        if (!quantity || quantity <= 0) {
-          throw new BadRequestException('Qaytariladigan son kiritilishi shart');
-        }
-        if (quantity > originalTransaction.quantity) {
-          throw new BadRequestException(
-            `Qaytariladigan son sotilgan sondan oshib ketdi. Sotilgan: ${originalTransaction.quantity} dona`
-          );
-        }
-        returnQuantity = quantity;
-        returnPrice = quantity * originalTransaction.unitPrice;
+        returnQuantity = originalTransaction.quantity;
+        refundAmount = returnQuantity * originalTransaction.unitPrice;
+        product.count += returnQuantity; // omborga qaytarish
       }
 
-      const user = await this.userRepo.findOne({ 
+      // onDelete flagini o'chirish (agar mahsulot qaytarilgan bo'lsa)
+      if (product.onDelete && (product.count > 0 || product.weight > 0)) {
+        product.onDelete = false;
+      }
+
+      await this.productRepo.save(product);
+
+      // 4. Qaytarish tranzaksiyasi yaratish
+      const user = await this.userRepo.findOne({
         where: { id: userId },
-        relations: ['branch']
+        relations: ['branch'],
       });
 
       if (!user || !user.branch) {
@@ -326,47 +554,57 @@ export class TransactionService {
       }
 
       const returnTransactionNumber = await this.generateTransactionNumber();
-      
+
       const returnTransaction = new Transactions();
       returnTransaction.user = user;
       returnTransaction.product = product;
       returnTransaction.branch = user.branch;
       returnTransaction.transactionNumber = returnTransactionNumber;
-      returnTransaction.barcode = barcode;
-      returnTransaction.quantity = returnQuantity > 0 ? returnQuantity : 0;
-      returnTransaction.weight = returnWeight > 0 ? returnWeight : 0;
+      returnTransaction.barcode = originalTransaction.barcode;
+      returnTransaction.quantity = returnQuantity;
+      returnTransaction.weight = returnWeight;
       returnTransaction.unitPrice = originalTransaction.unitPrice;
-      returnTransaction.totalPrice = -returnPrice;
+      returnTransaction.totalPrice = -refundAmount; // negative (refund)
       returnTransaction.type = TransactionType.RETURN;
       returnTransaction.status = TransactionStatus.COMPLETED;
       returnTransaction.sessionId = originalTransaction.sessionId;
-      returnTransaction.notes = `Qaytarish: ${transactionNumber}. Sabab: ${reason || 'Ko\'rsatilmagan'}`;
+      returnTransaction.notes = `Asl sotuv: ${transactionNumber}. Sabab: ${reason || "Ko'rsatilmagan"}`;
 
       await this.transactionRepo.save(returnTransaction);
 
-      if (product.isByWeight) {
-        product.weight += returnWeight;
-      } else {
-        product.count += returnQuantity;
-      }
-
-      if (product.onDelete && (product.count > 0 || product.weight > 0)) {
-        product.onDelete = false;
-      }
-
-      await this.productRepo.save(product);
+      // 5. Realtime emit qaytarish hodisasi
+      this.gateway.emitTransactionReturned(
+        {
+          id: returnTransaction.id,
+          transactionNumber: returnTransaction.transactionNumber,
+          refundAmount,
+          productName: product.name,
+        },
+        user.branch?.id,
+        userId,
+      );
 
       return {
         success: true,
-        returnTransaction: {
-          id: returnTransaction.id,
-          transactionNumber: returnTransaction.transactionNumber,
+        message: 'Mahsulot muvaffaqiyatli qaytarildi',
+        originalTransaction: {
+          transactionNumber: originalTransaction.transactionNumber,
           productName: product.name,
-          returnedQuantity: returnQuantity,
-          returnedWeight: returnWeight,
-          refundAmount: returnPrice,
+          quantity: returnQuantity,
+          weight: returnWeight,
+          unitPrice: originalTransaction.unitPrice,
+          originalTotal: originalTransaction.totalPrice,
         },
-        message: 'Mahsulot muvaffaqiyatli qaytarildi va pul qaytarildi',
+        refund: {
+          returnTransactionNumber,
+          refundAmount,
+          reason,
+        },
+        stock: {
+          productName: product.name,
+          newQuantity: product.count,
+          newWeight: product.weight,
+        },
       };
     } catch (error) {
       throw error;
@@ -377,11 +615,11 @@ export class TransactionService {
   private async generateTransactionNumber(): Promise<string> {
     const date = new Date();
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
-    
+
     const count = await this.transactionRepo.count({
       where: {
-        transactionNumber: Like(`TRX-${dateStr}-%`)
-      }
+        transactionNumber: Like(`TRX-${dateStr}-%`),
+      },
     });
 
     return `TRX-${dateStr}-${String(count + 1).padStart(4, '0')}`;
@@ -398,16 +636,20 @@ export class TransactionService {
         where: {
           user: { id: userId },
           status: TransactionStatus.COMPLETED,
-          createdAt: Between(startOfDay, endOfDay)
+          createdAt: Between(startOfDay, endOfDay),
         },
-        relations: ['product', 'branch', 'user']
+        relations: ['product', 'branch', 'user'],
       });
 
-      const sales = transactions.filter(t => t.type === TransactionType.SALE);
-      const returns = transactions.filter(t => t.type === TransactionType.RETURN);
+      const sales = transactions.filter((t) => t.type === TransactionType.SALE);
+      const returns = transactions.filter(
+        (t) => t.type === TransactionType.RETURN,
+      );
 
       const totalSales = sales.reduce((sum, t) => sum + t.totalPrice, 0);
-      const totalReturns = Math.abs(returns.reduce((sum, t) => sum + t.totalPrice, 0));
+      const totalReturns = Math.abs(
+        returns.reduce((sum, t) => sum + t.totalPrice, 0),
+      );
       const netTotal = totalSales - totalReturns;
 
       return {
@@ -415,11 +657,11 @@ export class TransactionService {
         date: targetDate.toISOString().split('T')[0],
         cashier: {
           id: userId,
-          name: transactions[0]?.user?.fullName || 'N/A'
+          name: transactions[0]?.user?.fullName || 'N/A',
         },
         branch: {
           id: transactions[0]?.branch?.id,
-          name: transactions[0]?.branch?.name
+          name: transactions[0]?.branch?.name,
         },
         summary: {
           totalSales,
@@ -428,7 +670,7 @@ export class TransactionService {
           salesCount: sales.length,
           returnsCount: returns.length,
         },
-        transactions: transactions.map(t => ({
+        transactions: transactions.map((t) => ({
           transactionNumber: t.transactionNumber,
           type: t.type,
           productName: t.product.name,
@@ -436,10 +678,10 @@ export class TransactionService {
           weight: t.weight,
           totalPrice: t.totalPrice,
           createdAt: t.createdAt,
-        }))
+        })),
       };
     } catch (error) {
-      throw error.message;
+      throw error;
     }
   }
 }

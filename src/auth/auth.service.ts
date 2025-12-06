@@ -1,5 +1,5 @@
 // auth/auth.service.ts
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,7 +26,7 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new UnauthorizedException('Telefon yoki parol noto\'g\'ri');
+        throw new NotFoundException('Foydalanuvchi topilmadi');
       }
 
       // Parolni tekshirish
