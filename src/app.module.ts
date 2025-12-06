@@ -3,8 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsModule } from './products/products.module';
 import { BranchsModule } from './branchs/branchs.module';
-import { TransactionsModule } from './transactions/transactions.module';
+
 import { UserModule } from './users/users.module';
+import { TransactionModule } from './transactions/transactions.module';
+import { AuthModule } from './auth/auth.module';
+import { ReportsModule } from './reports/reports.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
@@ -22,10 +25,12 @@ import { UserModule } from './users/users.module';
         synchronize: true,
       }),
     }),
+    AuthModule,
     BranchsModule,
     UserModule,
     ProductsModule,
-    TransactionsModule,
+    TransactionModule,
+    ReportsModule
   ],
 })
 export class AppModule {}

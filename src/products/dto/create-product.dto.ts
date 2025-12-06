@@ -24,9 +24,9 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({ description: 'Mahsulot shtrix-kodi, optional', maxLength: 13 })
   @IsOptional()
-  @IsNumber()
+  @IsString()
   @Length(13, 13, { message: 'Barcode 13 xonali bo‘lishi kerak' })
-  barcode?: number;
+  barcode?: string;
 
   @ApiProperty({ description: 'Mahsulot tannarxi', example: 20000 })
   @IsNumber()

@@ -1,15 +1,19 @@
+// transaction.module.ts
 import { Module } from '@nestjs/common';
-import { TransactionsService } from './transactions.service';
-import { TransactionsController } from './transactions.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Products } from '../products/product.entity';
+import { Users } from '../users/users.entity';
+import { Branchs } from '../branchs/branch.entity';
 import { Transactions } from './transaction.entity';
-import { Users } from 'src/users/users.entity';
-import { Products } from 'src/products/product.entity';
-import { Branchs } from 'src/branchs/branch.entity';
+import { TransactionController } from './transactions.controller';
+import { TransactionService } from './transactions.service';
+import { TransactionsGateway } from './transactions.gateway';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Transactions,Users,Products,Branchs])],
-  controllers: [TransactionsController],
-  providers: [TransactionsService],
+  imports: [TypeOrmModule.forFeature([Transactions, Products, Users, Branchs]), AuthModule],
+  controllers: [TransactionController],
+  providers: [TransactionService, TransactionsGateway],
+  exports: [TransactionService],
 })
-export class TransactionsModule {}
+export class TransactionModule {}

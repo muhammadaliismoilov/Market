@@ -21,14 +21,20 @@ export class ProductsService {
     private branchRepo: Repository<Branchs>,
   ) {}
 
-  // CREATE
+  // CREATE — mahsulot yaratish va isByWeight flagini to'g'ri belgilash
   async create(dto: CreateProductDto) {
     try {
+      // isByWeight: agar weight > 0 bo'lsa true, aks holda false
+      const isByWeight = dto.weight && dto.weight > 0 ? true : false;
+
+      // Product yaratish
       const product = this.productRepo.create({
         ...dto,
-        barcode: dto.barcode ? Number(dto.barcode) : undefined,
+        isByWeight,
+        barcode: dto.barcode ? String(dto.barcode) : undefined,
       });
 
+      // Branch tekshirish va biriktirish
       if (dto.branchId) {
         const branch = await this.branchRepo.findOne({
           where: { id: dto.branchId },
@@ -36,12 +42,17 @@ export class ProductsService {
         if (!branch) throw new NotFoundException('Fillial topilmadi');
         product.branch = branch;
       }
-      if (!dto.barcode) {
-        product.barcode = crypto.randomInt(1000000000000, 9999999999999);
+
+      // Agar barcode kelmasa avtomatik generatsiya
+      if (!product.barcode) {
+        product.barcode = String(
+          crypto.randomInt(1000000000000, 9999999999999),
+        );
       }
 
       return await this.productRepo.save(product);
     } catch (error) {
+      if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
         'Mahsulot yaratishda serverda xatolik yuz berdi',
         error?.message,
@@ -50,20 +61,19 @@ export class ProductsService {
   }
 
   async findActiveProducts() {
-  try {
-    // faqat onDelete false bo'lgan mahsulotlar va branch bilan
-    return await this.productRepo.find({
-      where: { onDelete: false },
-      relations: ['branch'],
-    });
-  } catch (error) {
-    throw new InternalServerErrorException(
-      'Faol mahsulotlarni olishda serverda xatolik yuz berdi',
-      error?.message,
-    );
+    try {
+      // faqat onDelete false bo'lgan mahsulotlar va branch bilan
+      return await this.productRepo.find({
+        where: { onDelete: false },
+        relations: ['branch'],
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Faol mahsulotlarni olishda serverda xatolik yuz berdi',
+        error?.message,
+      );
+    }
   }
-}
-
 
   //  FIND ALL
   async findAll() {
@@ -127,7 +137,9 @@ export class ProductsService {
       });
 
       if (!product.barcode) {
-        product.barcode = crypto.randomInt(1000000000000, 9999999999999);
+        product.barcode = String(
+          crypto.randomInt(1000000000000, 9999999999999),
+        );
       }
 
       return await this.productRepo.save(product);

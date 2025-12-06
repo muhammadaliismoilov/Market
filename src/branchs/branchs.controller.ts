@@ -8,6 +8,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -20,9 +21,11 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { BranchsService } from './branchs.service';
+import { JwtAuthGuard } from 'src/common/guard/jwt.auth.guard';
 
 @ApiTags('Branches')
-@ApiBearerAuth('JWT-auth') // Swagger uchun token qo'shish
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('branches')
 export class BranchsController {
   constructor(private readonly branchesService: BranchsService) {}
