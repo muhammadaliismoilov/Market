@@ -1,63 +1,32 @@
-// import { Branchs } from "src/branchs/branch.entity";
-// import { Products } from "src/products/product.entity";
-// import { Users } from "src/users/users.entity";
-// import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, UpdateDateColumn } from "typeorm";
-
-
-// @Entity()
-// export class Transactions {
-//   @PrimaryGeneratedColumn("uuid")
-//   id: string;
-
-//   @ManyToOne(() => Users, (u) => u.transactions)
-//   user: Users;
-
-//   @ManyToOne(() => Products)
-//   product: Products;
-
-//   @ManyToOne(() => Branchs, (b) => b.transactions)
-//   branch: Branchs;
-
-//   @Column("int")
-//   quantity: number;
-
-//   @Column("float")
-//   totalPrice: number;
-
-//   @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
-//   createdAt: Date;
-
-//   @UpdateDateColumn({ name: 'updated_at' })
-//   updatedAt: Date;
-// }
-
-import { Branchs } from "src/branchs/branch.entity";
-import { Products } from "src/products/product.entity";
-import { Users } from "src/users/users.entity";
-import { 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Column, 
-  ManyToOne, 
-  CreateDateColumn, 
+import { Branchs } from 'src/branchs/branch.entity';
+import { Payment } from 'src/peyments/payment.entity';
+import { Products } from 'src/products/product.entity';
+import { Users } from 'src/users/users.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
   UpdateDateColumn,
-  JoinColumn 
-} from "typeorm";
+  JoinColumn,
+  ManyToMany,
+} from 'typeorm';
 
 export enum TransactionType {
   SALE = 'SALE',
-  RETURN = 'RETURN'
+  RETURN = 'RETURN',
 }
 
 export enum TransactionStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  CANCELLED = 'CANCELLED',
 }
 
 @Entity()
 export class Transactions {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @ManyToOne(() => Users, (u) => u.transactions)
@@ -71,6 +40,9 @@ export class Transactions {
   @ManyToOne(() => Branchs, (b) => b.transactions)
   @JoinColumn({ name: 'branchId' })
   branch: Branchs;
+
+  @ManyToMany(() => Payment, (payment) => payment.transaction)
+  payments: Payment[];
 
   @Column({ type: 'varchar', unique: true })
   transactionNumber: string; // Unikal tranzaksiya raqami
@@ -93,14 +65,14 @@ export class Transactions {
   @Column({
     type: 'enum',
     enum: TransactionType,
-    default: TransactionType.SALE
+    default: TransactionType.SALE,
   })
   type: TransactionType;
 
   @Column({
     type: 'enum',
     enum: TransactionStatus,
-    default: TransactionStatus.PENDING
+    default: TransactionStatus.PENDING,
   })
   status: TransactionStatus;
 

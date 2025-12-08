@@ -7,13 +7,14 @@ import { Branchs } from '../branchs/branch.entity';
 import { Transactions } from './transaction.entity';
 import { TransactionController } from './transactions.controller';
 import { TransactionService } from './transactions.service';
-import { TransactionsGateway } from './transactions.gateway';
+import { TransactionsGateway } from '../websockets/transactions.gateway';
 import { AuthModule } from '../auth/auth.module';
+import { TransactionCleanerService } from './transaction-cleaner.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Transactions, Products, Users, Branchs]), AuthModule],
   controllers: [TransactionController],
-  providers: [TransactionService, TransactionsGateway],
+  providers: [TransactionService, TransactionsGateway,TransactionCleanerService],
   exports: [TransactionService],
 })
 export class TransactionModule {}

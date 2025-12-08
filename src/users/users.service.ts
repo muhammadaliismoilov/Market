@@ -8,8 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Users } from '../users/users.entity';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto,UpdateUserDto } from './dto/users.dto';
 import { Branchs } from 'src/branchs/branch.entity';
 
 @Injectable()

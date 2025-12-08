@@ -44,7 +44,7 @@ export class AuthController {
       httpOnly: true,
       secure: false, // productionda true
       sameSite: 'lax',
-      maxAge: 15 * 60 * 1000, // 15 daq
+      maxAge: 60 * 60 * 1000, // 15 daq
     });
 
     // 🍪 REFRESH TOKEN

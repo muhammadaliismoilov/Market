@@ -8,6 +8,8 @@ import { UserModule } from './users/users.module';
 import { TransactionModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
 import { ReportsModule } from './reports/reports.module';
+import { PaymentsModule } from './peyments/payments.module';
+import { DebtModule } from './debt/debt.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
@@ -30,7 +32,9 @@ import { ReportsModule } from './reports/reports.module';
     UserModule,
     ProductsModule,
     TransactionModule,
-    ReportsModule
+    PaymentsModule,
+    DebtModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}
