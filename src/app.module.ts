@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsModule } from './products/products.module';
 import { BranchsModule } from './branchs/branchs.module';
-
+import { ScheduleModule } from '@nestjs/schedule'; 
 import { UserModule } from './users/users.module';
 import { TransactionModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
@@ -27,6 +27,7 @@ import { DebtModule } from './debt/debt.module';
         synchronize: true,
       }),
     }),
+     ScheduleModule.forRoot(),
     AuthModule,
     BranchsModule,
     UserModule,

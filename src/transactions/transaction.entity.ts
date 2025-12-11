@@ -1,4 +1,5 @@
 import { Branchs } from 'src/branchs/branch.entity';
+import { Debt } from 'src/debt/debt.entity';
 import { Payment } from 'src/peyments/payment.entity';
 import { Products } from 'src/products/product.entity';
 import { Users } from 'src/users/users.entity';
@@ -11,6 +12,7 @@ import {
   UpdateDateColumn,
   JoinColumn,
   ManyToMany,
+  OneToMany,
 } from 'typeorm';
 
 export enum TransactionType {
@@ -19,6 +21,8 @@ export enum TransactionType {
 }
 
 export enum TransactionStatus {
+  DEBT = 'DEBT',
+  PARTIAL ='PARTIAL',
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',

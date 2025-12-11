@@ -40,8 +40,10 @@ export class Products {
   @Column({
     type: 'enum',
     enum: ProductType,
+    array: true,
+    default: '{}', // bo‘sh array
   })
-  type: ProductType;
+  type: ProductType[];
 
   @ManyToOne(() => Branchs, (b) => b.products, {
     nullable: true,

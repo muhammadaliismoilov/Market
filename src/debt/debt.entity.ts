@@ -1,3 +1,4 @@
+import { Transactions } from 'src/transactions/transaction.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -17,17 +18,24 @@ export class Debt {
   @Column()
   phone: string;
 
-  @Column('decimal', { precision: 12, scale: 2 })
+  @Column('float')
   totalDebt: number; // qancha qarzi bor
 
-  @Column('decimal', { precision: 12, scale: 2, default: 0 })
+  @Column('float')
   repaidAmount: number; // qancha qaytarib bolgan
 
-  @Column('decimal', { precision: 12, scale: 2 })
+  @Column('float')
   remainingDebt: number; // totalDebt - repaidAmount
 
   @Column({ default: 'pending' }) // pending, partial, paid
   status: string;
+
+  @Column({
+    type: 'uuid',
+    nullable: true,
+    default: '00000000-0000-0000-0000-000000000000',
+  })
+  sessionId: string;
 
   @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;

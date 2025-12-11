@@ -21,6 +21,9 @@ import {
 } from './dto/transaction.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionsGateway } from '../websockets/transactions.gateway';
+import { Debt } from 'src/debt/debt.entity';
+import { log } from 'console';
+import { Payment } from 'src/peyments/payment.entity';
 
 @Injectable()
 export class TransactionService {
@@ -34,104 +37,111 @@ export class TransactionService {
     @InjectRepository(Users)
     private readonly userRepo: Repository<Users>,
 
-    @InjectRepository(Branchs)
-    private readonly branchRepo: Repository<Branchs>,
+    @InjectRepository(Debt)
+    private readonly debtRepo: Repository<Debt>,
+
+    @InjectRepository(Payment)
+    private readonly paymentRepo: Repository<Payment>,
 
     private readonly gateway: TransactionsGateway,
   ) {}
 
-
   // Barcode skanerlash
-async scanProduct(userId: string, scanDto: TransactionScanDto) {
-  try {
-    const { barcode, quantity, weight, notes } = scanDto;
+  async scanProduct(userId: string, scanDto: TransactionScanDto) {
+    try {
+      const { barcode, quantity, weight, notes } = scanDto;
 
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      relations: ['branch'],
-    });
-    if (!user || !user.branch) {
-      throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
-    }
+      const user = await this.userRepo.findOne({
+        where: { id: userId },
+        relations: ['branch'],
+      });
+      if (!user || !user.branch) {
+        throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
+      }
 
-    // Avvalgi pending sessiyani topish yoki yangisini yaratish
-    const usedSessionId =
-      (await (async (): Promise<string> => {
+      // Avvalgi pending sessiyani topish yoki yangisini yaratish
+      const usedSessionId = await (async (): Promise<string> => {
         const pending = await this.transactionRepo.findOne({
           where: { user: { id: userId }, status: TransactionStatus.PENDING },
           order: { createdAt: 'DESC' },
         });
         return pending ? pending.sessionId : uuidv4();
-      })());
+      })();
 
-    const product = await this.productRepo.findOne({ where: { barcode } });
-    if (!product) throw new NotFoundException(`Barcode ${barcode} bo'yicha mahsulot topilmadi`);
+      const product = await this.productRepo.findOne({ where: { barcode } });
+      if (!product)
+        throw new NotFoundException(
+          `Barcode ${barcode} bo'yicha mahsulot topilmadi`,
+        );
 
-    let finalQuantity = 0;
-    let finalWeight = 0;
-    let totalPrice = 0;
+      let finalQuantity = 0;
+      let finalWeight = 0;
+      let totalPrice = 0;
 
-    if (product.isByWeight) {
-      if (!weight || weight <= 0) {
-        throw new BadRequestException(`${product.name} uchun og‘irlik kiritilishi kerak.`);
+      if (product.isByWeight) {
+        if (!weight || weight <= 0) {
+          throw new BadRequestException(
+            `${product.name} uchun og‘irlik kiritilishi kerak.`,
+          );
+        }
+        finalWeight = weight;
+        totalPrice = finalWeight * product.price;
+      } else {
+        const q = quantity ?? 1;
+        if (!q || q <= 0) {
+          throw new BadRequestException(
+            `${product.name} uchun dona soni kiritilishi kerak.`,
+          );
+        }
+        finalQuantity = q;
+        totalPrice = finalQuantity * product.price;
       }
-      finalWeight = weight;
-      totalPrice = finalWeight * product.price;
-    } else {
-      const q = quantity ?? 1;
-      if (!q || q <= 0) {
-        throw new BadRequestException(`${product.name} uchun dona soni kiritilishi kerak.`);
-      }
-      finalQuantity = q;
-      totalPrice = finalQuantity * product.price;
+
+      const transactionNumber = await this.generateTransactionNumber();
+
+      const tx = new Transactions();
+      tx.user = user;
+      tx.product = product;
+      tx.branch = user.branch;
+      tx.transactionNumber = transactionNumber;
+      tx.barcode = barcode;
+      tx.quantity = finalQuantity;
+      tx.weight = finalWeight;
+      tx.unitPrice = product.price;
+      tx.totalPrice = totalPrice;
+      tx.type = TransactionType.SALE;
+      tx.status = TransactionStatus.PENDING;
+      tx.sessionId = usedSessionId;
+      tx.notes = notes ?? '';
+
+      await this.transactionRepo.save(tx);
+
+      const pending = await this.transactionRepo.find({
+        where: { sessionId: usedSessionId, status: TransactionStatus.PENDING },
+      });
+
+      const sessionTotal = pending.reduce((s, p) => s + p.totalPrice, 0);
+      const itemsCount = pending.length;
+
+      return {
+        success: true,
+        sessionId: tx.sessionId,
+        transaction: {
+          id: tx.id,
+          transactionNumber: tx.transactionNumber,
+          productName: product.name,
+          barcode: tx.barcode,
+          quantity: tx.quantity,
+          weight: tx.weight,
+          unitPrice: tx.unitPrice,
+          totalPrice: tx.totalPrice,
+        },
+        totals: { total: sessionTotal, itemsCount },
+      };
+    } catch (error) {
+      throw error;
     }
-
-    const transactionNumber = await this.generateTransactionNumber();
-
-    const tx = new Transactions();
-    tx.user = user;
-    tx.product = product;
-    tx.branch = user.branch;
-    tx.transactionNumber = transactionNumber;
-    tx.barcode = barcode;
-    tx.quantity = finalQuantity;
-    tx.weight = finalWeight;
-    tx.unitPrice = product.price;
-    tx.totalPrice = totalPrice;
-    tx.type = TransactionType.SALE;
-    tx.status = TransactionStatus.PENDING;
-    tx.sessionId = usedSessionId;
-    tx.notes = notes ?? '';
-
-    await this.transactionRepo.save(tx);
-
-    const pending = await this.transactionRepo.find({
-      where: { sessionId: usedSessionId, status: TransactionStatus.PENDING },
-    });
-
-    const sessionTotal = pending.reduce((s, p) => s + p.totalPrice, 0);
-    const itemsCount = pending.length;
-
-    return {
-      success: true,
-      sessionId: tx.sessionId,
-      transaction: {
-        id: tx.id,
-        transactionNumber: tx.transactionNumber,
-        productName: product.name,
-        barcode: tx.barcode,
-        quantity: tx.quantity,
-        weight: tx.weight,
-        unitPrice: tx.unitPrice,
-        totalPrice: tx.totalPrice,
-      },
-      totals: { total: sessionTotal, itemsCount },
-    };
-  } catch (error) {
-    throw error;
   }
-}
-
 
   async getSessionTransactions(userId: string, sessionId: string) {
     try {
@@ -177,76 +187,195 @@ async scanProduct(userId: string, scanDto: TransactionScanDto) {
   }
 
   // Sessiyani tugatish — shu yerda real mahsulot kamayadi
-async completeSession(userId: string, completeDto: CompleteSessionDto) {
-  try {
-    const { sessionId, notes } = completeDto;
+  // async completeSession(userId: string, completeDto: CompleteSessionDto) {
+  //   try {
+  //     const { sessionId, notes } = completeDto;
 
-    const transactions = await this.transactionRepo.find({
-      where: {
-        sessionId,
-        status: TransactionStatus.PENDING,
-        user: { id: userId },
-      },
-      relations: ['product'],
-    });
+  //     const payments = await this.paymentRepo.find({where:{sessionId}})
 
-    if (transactions.length === 0) {
-      throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
-    }
+  //  const debt = await this.debtRepo.find({where:{sessionId}})
 
-    for (const transaction of transactions) {
-      const product = await this.productRepo.findOne({
-        where: { id: transaction.product.id },
-      });
+  //     console.log(debt);
 
-      if (!product) continue;
+  //     const transactions = await this.transactionRepo.find({
+  //       where: {
+  //         sessionId,
+  //         status: TransactionStatus.PENDING,
+  //         user: { id: userId },
+  //       },
+  //       relations: ['product'],
+  //     });
 
-      if (product.isByWeight) {
-        if (!product.weight || product.weight < transaction.weight) {
-          throw new BadRequestException(
-            `${product.name} uchun omborda yetarli kg yo‘q. Mavjud: ${product.weight || 0} kg`
-          );
-        }
-        product.weight -= transaction.weight;
-      } else {
-        if (!product.count || product.count < transaction.quantity) {
-          throw new BadRequestException(
-            `${product.name} uchun omborda yetarli dona yo‘q. Mavjud: ${product.count || 0} dona`
-          );
-        }
-        product.count -= transaction.quantity;
-      }
+  //     if (transactions.length === 0) {
+  //       throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
+  //     }
 
-      if ((product.isByWeight && product.weight <= 0) || (!product.isByWeight && product.count <= 0)) {
-        product.onDelete = true;
-      }
+  //     for (const transaction of transactions) {
+  //       const product = await this.productRepo.findOne({
+  //         where: { id: transaction.product.id },
+  //       });
 
-      await this.productRepo.save(product);
+  //       if (!product) continue;
 
-      transaction.status = TransactionStatus.COMPLETED;
-      if (notes) transaction.notes = notes;
-      await this.transactionRepo.save(transaction);
-    }
+  //       if (product.isByWeight) {
+  //         if (!product.weight || product.weight < transaction.weight) {
+  //           throw new BadRequestException(
+  //             `${product.name} uchun omborda yetarli kg yo‘q. Mavjud: ${product.weight || 0} kg`
+  //           );
+  //         }
+  //         product.weight -= transaction.weight;
+  //       } else {
+  //         if (!product.count || product.count < transaction.quantity) {
+  //           throw new BadRequestException(
+  //             `${product.name} uchun omborda yetarli dona yo‘q. Mavjud: ${product.count || 0} dona`
+  //           );
+  //         }
+  //         product.count -= transaction.quantity;
+  //       }
 
-    const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+  //       if ((product.isByWeight && product.weight <= 0) || (!product.isByWeight && product.count <= 0)) {
+  //         product.onDelete = true;
+  //       }
 
-    return {
-      success: true,
-      message: "To'lov amalga oshirildi",
-      sessionId,
-      totalTransactions: transactions.length,
-      totalSum,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
+  //       await this.productRepo.save(product);
 
+  //       transaction.status = TransactionStatus.COMPLETED;
+  //       if (notes) transaction.notes = notes;
+  //       await this.transactionRepo.save(transaction);
+  //     }
 
+  //     const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+
+  //     return {
+  //       success: true,
+  //       message: "To'lov amalga oshirildi",
+  //       sessionId,
+  //       totalTransactions: transactions.length,
+  //       totalSum,
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
   // Mahsulotni qaytarish
   // transactionNumber va reason orqali qaytarish tranzaksiyasi yaratadi
   // Ombordagi mahsulotni qaytaradi va mijozga refund summasini qaytaradi
+
+  async completeSession(userId: string, completeDto: CompleteSessionDto) {
+    try {
+      const { sessionId, notes } = completeDto;
+
+      // To'lovlar va qarzlarni olish
+      const payments = await this.paymentRepo.findOne({ where: { sessionId } });
+      const debt = await this.debtRepo.findOne({ where: { sessionId } });
+
+      // console.log('Payment:', payments);
+      console.log('Debt:', debt);
+
+      // Tranzaksiyalarni olish
+      const transactions = await this.transactionRepo.find({
+        where: {
+          sessionId,
+          status: TransactionStatus.PENDING,
+          user: { id: userId },
+        },
+        relations: ['product'],
+      });
+
+      if (transactions.length === 0) {
+        throw new NotFoundException('Ushbu sessiyada tranzaksiyalar topilmadi');
+      }
+
+      // To'lov holatini aniqlash
+      let transactionStatus: TransactionStatus;
+      let paymentMessage: string;
+
+      if (payments && payments.fullyPaid && !debt) {
+        // To'liq to'langan (qarz yo'q)
+        transactionStatus = TransactionStatus.COMPLETED;
+        paymentMessage =
+          "To'lov to'liq amalga oshirildi (naqd, click, terminal)";
+      } else if (debt && debt.totalDebt === debt.remainingDebt) {
+        // To'liq qarzga berilgan
+        transactionStatus = TransactionStatus.DEBT;
+        paymentMessage = "To'lov to'liq qarzga amalga oshirildi";
+      } else if (debt && debt.repaidAmount > 0) {
+        // Qisman to'langan, qolgan qismni qarzga
+        transactionStatus = TransactionStatus.PARTIAL;
+        paymentMessage =
+          "To'lov qisman amalga oshirildi, qolgan qismi qarzga yozildi";
+      } else {
+        // Default holat
+        transactionStatus = TransactionStatus.COMPLETED;
+        paymentMessage = "To'lov amalga oshirildi";
+      }
+
+      // Mahsulotlarni o'zgartirish va tranzaksiya statusini yangilash
+      for (const transaction of transactions) {
+        const product = await this.productRepo.findOne({
+          where: { id: transaction.product.id },
+        });
+
+        if (!product) continue;
+
+        // Vazn bo'yicha mahsulot
+        if (product.isByWeight) {
+          if (!product.weight || product.weight < transaction.weight) {
+            throw new BadRequestException(
+              `${product.name} uchun omborda yetarli kg yo'q. Mavjud: ${product.weight || 0} kg`,
+            );
+          }
+          product.weight -= transaction.weight;
+        } else {
+          // Dona bo'yicha mahsulot
+          if (!product.count || product.count < transaction.quantity) {
+            throw new BadRequestException(
+              `${product.name} uchun omborda yetarli dona yo'q. Mavjud: ${product.count || 0} dona`,
+            );
+          }
+          product.count -= transaction.quantity;
+        }
+
+        // Mahsulot tugagan bo'lsa, o'chirishga belgilash
+        if (
+          (product.isByWeight && product.weight <= 0) ||
+          (!product.isByWeight && product.count <= 0)
+        ) {
+          product.onDelete = true;
+        }
+
+        await this.productRepo.save(product);
+
+        // Tranzaksiya statusini yangilash
+        transaction.status = transactionStatus;
+        if (notes) transaction.notes = notes;
+
+        await this.transactionRepo.save(transaction);
+      }
+
+      const totalSum = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+
+      return {
+        success: true,
+        message: paymentMessage,
+        sessionId,
+        totalTransactions: transactions.length,
+        totalSum,
+        paymentStatus: transactionStatus,
+        debtInfo: debt
+          ? {
+              totalDebt: debt.totalDebt,
+              repaidAmount: debt.repaidAmount,
+              remainingDebt: debt.remainingDebt,
+            }
+          : null,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async returnProduct(userId: string, returnDto: ReturnTransactionDto) {
     try {
       const { transactionNumber, reason } = returnDto;

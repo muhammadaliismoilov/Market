@@ -7,8 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Products, ProductType } from './product.entity';
 import { Branchs } from 'src/branchs/branch.entity';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto ,UpdateProductDto} from './dto/product.dto';
 import * as crypto from 'crypto';
 
 @Injectable()

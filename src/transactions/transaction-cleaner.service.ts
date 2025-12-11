@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, LessThan } from 'typeorm';
 import { Transactions } from './transaction.entity';
 import { TransactionStatus } from './transaction.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class TransactionCleanerService {
@@ -19,25 +20,31 @@ export class TransactionCleanerService {
    * 🧹 Har 1 daqiqada pending sessiyalarni tekshiradi 
    * 10 daqiqadan oshganlarni o'chiradi
    */
+  @Cron(CronExpression.EVERY_MINUTE)
   async cleanupExpiredSessions() {
-    const expirationTime = new Date(Date.now() - this.SESSION_EXPIRE_MS);
+    try {
+      const expirationTime = new Date(Date.now() - this.SESSION_EXPIRE_MS);
 
-    const expiredSessions = await this.transactionRepo.find({
-      where: {
-        status: TransactionStatus.PENDING,
-        createdAt: LessThan(expirationTime),
-      },
-    });
+      const expiredSessions = await this.transactionRepo.find({
+        where: {
+          status: TransactionStatus.PENDING,
+          createdAt: LessThan(expirationTime),
+        },
+      });
 
-    if (expiredSessions.length > 0) {
-      const sessionIds = [...new Set(expiredSessions.map(e => e.sessionId))];
+      if (expiredSessions.length > 0) {
+        const sessionIds = [...new Set(expiredSessions.map(e => e.sessionId))];
 
-      await this.transactionRepo.delete({ sessionId: In(sessionIds) });
+        await this.transactionRepo.delete({ sessionId: In(sessionIds) });
 
-      this.logger.warn(`⛔ Muddatidan o'tgan sessiyalar o'chirildi: ${sessionIds.join(', ')}`);
+        this.logger.warn(`⛔ O'chirildi | Pending sessiyalar: ${sessionIds}`);
+      } else {
+        this.logger.log(`✓ O'chirish uchun session topilmadi`);
+      }
+    } catch (err) {
+      this.logger.error('Cron error: ' + err.message);
     }
   }
-
   /**
    * ❌ Sessionni qo‘lda bekor qilish
    * Foydalanuvchi yoki admin tomonidan chaqiriladi

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Payment, PaymentMethod } from './payment.entity';
 import { Debt } from '../debt/debt.entity';
 import { CreatePaymentDto } from './dto/payment.dto';
@@ -56,7 +56,6 @@ export class PaymentService {
 
       // Payment yozish
       const payment = this.paymentRepo.create({
-        // transaction: sessionExisist.map((t) => t.id),
         sessionId: dto.sessionId,
         totalSum,
         items: sessionExisist.map((item) => ({
@@ -79,33 +78,20 @@ export class PaymentService {
       const savedPayment = await this.paymentRepo.save(payment);
 
       // ===================
-      // 🔥 To'liq to'langan
+      // 🔥 To'liq to'langan (qarz yo'q)
       // ===================
       if (fullyPaid) {
         this.paymentGateway.emitPaymentCompleted(savedPayment);
-
         return {
-          message: 'To‘lov to‘liq amalga oshirildi',
+          message: "To'lov to'liq amalga oshirildi (naqd, click, terminal)",
           payment: savedPayment,
         };
       }
 
       // ===================
-      // 🔥 Qisman to‘lov
+      // 🔥 To'liq qarzga berildi (faqat paidDebt)
       // ===================
-      if (paidDebt === 0 && remainingDebt > 0) {
-        this.paymentGateway.emitPaymentPartial(savedPayment);
-
-        return {
-          message: 'To‘lov qisman amalga oshirildi',
-          payment: savedPayment,
-        };
-      }
-
-      // ===================
-      // 🔥 Qarz yaratildi
-      // ===================
-      if (remainingDebt > 0) {
+      if (paidDebt === totalSum && remainingDebt > 0) {
         if (!dto.fullName || !dto.phone) {
           throw new BadRequestException(
             'Qarzga yozish uchun fullName va phone shart',
@@ -113,6 +99,7 @@ export class PaymentService {
         }
 
         const debt = this.debtRepo.create({
+          sessionId: dto.sessionId,
           fullName: dto.fullName,
           phone: dto.phone,
           totalDebt: remainingDebt,
@@ -122,15 +109,45 @@ export class PaymentService {
         });
 
         const savedDebt = await this.debtRepo.save(debt);
-
-        // 🔹 To‘g‘ri chaqirish: 2 argument
         this.paymentGateway.emitDebtCreated({ savedDebt, savedPayment });
 
         return {
           message:
-            'To‘lov qisman amalga oshirildi — mijoz qarzdorlar ro‘yxatiga qo‘shildi',
+            "To'lov to'liq qarzga amalga oshirildi — mijoz qarzdorlar ro'yxatiga qo'shildi",
           payment: savedPayment,
           debt: savedDebt,
+        };
+      }
+
+      // ===================
+      // 🔥 Qisman to'lov (naqd/click/terminal to'langan, lekin qarz qolgan)
+      // ===================
+      if (remainingDebt > 0) {
+        if (!dto.fullName || !dto.phone) {
+          throw new BadRequestException(
+            'Qarzga yozish uchun fullName va phone shart',
+          );
+        }
+
+        const debt = this.debtRepo.create({
+          sessionId: dto.sessionId,
+          fullName: dto.fullName,
+          phone: dto.phone,
+          totalDebt: remainingDebt,
+          repaidAmount: totalPaid - paidDebt, // Naqd/click/terminal bilan to'langan
+          remainingDebt,
+          status: 'pending',
+        });
+
+        const savedDebt = await this.debtRepo.save(debt);
+        this.paymentGateway.emitPaymentPartial(savedPayment);
+
+        return {
+          message:
+            "To'lov qisman amalga oshirildi va mijoz qarzdorlar ro'yxatiga qo'shildi",
+          payment: savedPayment,
+          debt: savedDebt,
+          remainingDebt,
         };
       }
     } catch (error) {

@@ -14,6 +14,7 @@ import { Branchs } from 'src/branchs/branch.entity';
 export enum UserRole {
   ADMIN = 'admin',
   CASHIER = 'cashier',
+  DISTRIBUTOR = 'distributor'
 }
 
 @Entity()

@@ -98,7 +98,7 @@ export class CreatePaymentDto {
   @ApiProperty({
     type: [PaymentItemDto],
     example: [
-      { method: 'cash', amount: 30000 },
+      { method: 'naqt', amount: 30000 },
       { method: 'terminal', amount: 20000 },
     ],
   })
@@ -107,7 +107,7 @@ export class CreatePaymentDto {
   @Type(() => PaymentItemDto)
   payments: PaymentItemDto[];
 
-  @ApiProperty({ example:'Satdor', description:'Qarzdorning ismi', required: false })
+  @ApiProperty({ example:'Sardor', description:'Qarzdorning ismi', required: false })
   @IsOptional()
   @IsString()
   fullName?: string;

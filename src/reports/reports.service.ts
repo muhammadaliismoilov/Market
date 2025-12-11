@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Transactions, TransactionStatus } from 'src/transactions/transaction.entity';
+import {
+  Transactions,
+  TransactionStatus,
+} from 'src/transactions/transaction.entity';
 import { Products } from 'src/products/product.entity';
+import { Debt } from 'src/debt/debt.entity';
+import { In, Between } from 'typeorm';
+import { Payment } from 'src/peyments/payment.entity';
 
 @Injectable()
 export class ReportsService {
@@ -11,6 +17,10 @@ export class ReportsService {
     private readonly txRepo: Repository<Transactions>,
     @InjectRepository(Products)
     private readonly productRepo: Repository<Products>,
+    @InjectRepository(Debt)
+    private readonly debtRepo: Repository<Debt>,
+    @InjectRepository(Payment)
+    private readonly paymentRepo: Repository<Payment>,
   ) {}
 
   // helper to convert raw numeric strings
@@ -20,6 +30,23 @@ export class ReportsService {
     return isNaN(n) ? 0 : n;
   }
 
+  // Helper: sessionId bo'yicha to'langan summani hisoblash
+  private async getActualPaidAmount(sessionId: string): Promise<number> {
+    const payment = await this.paymentRepo.findOne({
+      where: { sessionId },
+    });
+
+    if (!payment) return 0;
+
+    if (!payment || !payment.paidBreakdown) return 0;
+
+    const cash = payment.paidBreakdown.cash || 0;
+    const terminal = payment.paidBreakdown.terminal || 0;
+    const click = payment.paidBreakdown.click || 0;
+
+    return cash + terminal + click;
+  }
+
   async dailyReport(date?: string, branchId?: string) {
     const target = date ? new Date(date) : new Date();
     const start = new Date(target);
@@ -27,20 +54,28 @@ export class ReportsService {
     const end = new Date(target);
     end.setHours(23, 59, 59, 999);
 
-    const qb = this.txRepo.createQueryBuilder('t')
-      .select("date_trunc('hour', t.\"createdAt\")", 'interval')
-      .addSelect('SUM(t."totalPrice")', 'total')
+    const qb = this.txRepo
+      .createQueryBuilder('t')
+      .select('date_trunc(\'hour\', t."createdAt")', 'interval')
+      .addSelect('t."sessionId"', 'sessionId')
+      .addSelect('SUM(t."totalPrice")', 'totalPrice')
       .addSelect('COUNT(*)', 'count')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
+      .where('t.status IN (:...statuses)', {
+        statuses: [
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ],
+      })
       .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
 
     if (branchId) qb.andWhere('t.branch_id = :branchId', { branchId });
 
-    qb.groupBy('interval').orderBy('interval');
+    qb.groupBy('interval, t."sessionId"').orderBy('interval');
 
     const rows = await qb.getRawMany();
 
-    // prepare labels 00-23
+    // Prepare labels 00-23
     const labels: string[] = [];
     const series: number[] = [];
     const counts: number[] = [];
@@ -50,28 +85,50 @@ export class ReportsService {
       counts.push(0);
     }
 
+    // Har bir session uchun haqiqiy to'langan summani hisoblash
     for (const r of rows) {
       const dt = new Date(r.interval);
       const hour = dt.getHours();
-      series[hour] = this.toNumber(r.total);
-      counts[hour] = this.toNumber(r.count);
+
+      // To'langan summani olish
+      const paidAmount = await this.getActualPaidAmount(r.sessionId);
+
+      series[hour] += paidAmount;
+      counts[hour] += this.toNumber(r.count);
     }
 
-    // summary totals for the day
-    const summaryQ = await this.txRepo.createQueryBuilder('t')
-      .select('SUM(t."totalPrice")', 'totalSales')
-      .addSelect('SUM(CASE WHEN t."totalPrice" < 0 THEN t."totalPrice" ELSE 0 END)', 'totalReturns')
-      .addSelect('COUNT(*)', 'transactionsCount')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
+    // Summary totals for the day
+    const allTxs = await this.txRepo.find({
+      where: {
+        status: In([
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ]),
+        createdAt: Between(start, end),
+        ...(branchId && { branch: { id: branchId } }),
+      },
+    });
 
-    if (branchId) summaryQ.andWhere('t.branch_id = :branchId', { branchId });
+    let totalSales = 0;
+    let totalReturns = 0;
+    const processedSessions = new Set<string>();
 
-    const summaryRaw = await summaryQ.getRawOne();
-    const totalSales = this.toNumber(summaryRaw?.totalSales);
-    const totalReturns = Math.abs(this.toNumber(summaryRaw?.totalReturns || 0));
+    for (const tx of allTxs) {
+      if (processedSessions.has(tx.sessionId)) continue;
+      processedSessions.add(tx.sessionId);
+
+      const paidAmount = await this.getActualPaidAmount(tx.sessionId);
+
+      if (tx.totalPrice < 0) {
+        totalReturns += Math.abs(tx.totalPrice);
+      } else {
+        totalSales += paidAmount;
+      }
+    }
+
     const netTotal = totalSales - totalReturns;
-    const transactionsCount = this.toNumber(summaryRaw?.transactionsCount);
+    const transactionsCount = allTxs.length;
 
     return {
       success: true,
@@ -87,7 +144,7 @@ export class ReportsService {
   async weeklyReport(isoWeekStart?: string, branchId?: string) {
     const ref = isoWeekStart ? new Date(isoWeekStart) : new Date();
     const day = ref.getDay();
-    const diffToMonday = ((day + 6) % 7);
+    const diffToMonday = (day + 6) % 7;
     const monday = new Date(ref);
     monday.setDate(ref.getDate() - diffToMonday);
     monday.setHours(0, 0, 0, 0);
@@ -95,16 +152,27 @@ export class ReportsService {
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
-    const qb = this.txRepo.createQueryBuilder('t')
-      .select("date_trunc('day', t.\"createdAt\")", 'day')
-      .addSelect('SUM(t."totalPrice")', 'total')
+    const qb = this.txRepo
+      .createQueryBuilder('t')
+      .select('date_trunc(\'day\', t."createdAt")', 'day')
+      .addSelect('t."sessionId"', 'sessionId')
+      .addSelect('SUM(t."totalPrice")', 'totalPrice')
       .addSelect('COUNT(*)', 'count')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."createdAt" BETWEEN :start AND :end', { start: monday, end: sunday });
+      .where('t.status IN (:...statuses)', {
+        statuses: [
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ],
+      })
+      .andWhere('t."createdAt" BETWEEN :start AND :end', {
+        start: monday,
+        end: sunday,
+      });
 
     if (branchId) qb.andWhere('t.branch_id = :branchId', { branchId });
 
-    qb.groupBy('day').orderBy('day');
+    qb.groupBy('day, t."sessionId"').orderBy('day');
 
     const rows = await qb.getRawMany();
 
@@ -121,25 +189,46 @@ export class ReportsService {
 
     for (const r of rows) {
       const dt = new Date(r.day);
-      const idx = ((dt.getDay() + 6) % 7);
-      series[idx] = this.toNumber(r.total);
-      counts[idx] = this.toNumber(r.count);
+      const idx = (dt.getDay() + 6) % 7;
+
+      const paidAmount = await this.getActualPaidAmount(r.sessionId);
+
+      series[idx] += paidAmount;
+      counts[idx] += this.toNumber(r.count);
     }
 
-    const summaryQ = this.txRepo.createQueryBuilder('t')
-      .select('SUM(t."totalPrice")', 'totalSales')
-      .addSelect('SUM(CASE WHEN t."totalPrice" < 0 THEN t."totalPrice" ELSE 0 END)', 'totalReturns')
-      .addSelect('COUNT(*)', 'transactionsCount')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."createdAt" BETWEEN :start AND :end', { start: monday, end: sunday });
+    // Summary
+    const allTxs = await this.txRepo.find({
+      where: {
+        status: In([
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ]),
+        createdAt: Between(monday, sunday),
+        ...(branchId && { branch: { id: branchId } }),
+      },
+    });
 
-    if (branchId) summaryQ.andWhere('t.branch_id = :branchId', { branchId });
+    let totalSales = 0;
+    let totalReturns = 0;
+    const processedSessions = new Set<string>();
 
-    const summaryRaw = await summaryQ.getRawOne();
-    const totalSales = this.toNumber(summaryRaw?.totalSales);
-    const totalReturns = Math.abs(this.toNumber(summaryRaw?.totalReturns || 0));
+    for (const tx of allTxs) {
+      if (processedSessions.has(tx.sessionId)) continue;
+      processedSessions.add(tx.sessionId);
+
+      const paidAmount = await this.getActualPaidAmount(tx.sessionId);
+
+      if (tx.totalPrice < 0) {
+        totalReturns += Math.abs(tx.totalPrice);
+      } else {
+        totalSales += paidAmount;
+      }
+    }
+
     const netTotal = totalSales - totalReturns;
-    const transactionsCount = this.toNumber(summaryRaw?.transactionsCount);
+    const transactionsCount = allTxs.length;
 
     return {
       success: true,
@@ -160,16 +249,24 @@ export class ReportsService {
     const start = new Date(year, month, 1, 0, 0, 0, 0);
     const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
-    const qb = this.txRepo.createQueryBuilder('t')
-      .select("to_char(t.\"createdAt\", 'DD')", 'day')
-      .addSelect('SUM(t."totalPrice")', 'total')
+    const qb = this.txRepo
+      .createQueryBuilder('t')
+      .select('to_char(t."createdAt", \'DD\')', 'day')
+      .addSelect('t."sessionId"', 'sessionId')
+      .addSelect('SUM(t."totalPrice")', 'totalPrice')
       .addSelect('COUNT(*)', 'count')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
+      .where('t.status IN (:...statuses)', {
+        statuses: [
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ],
+      })
       .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
 
     if (branchId) qb.andWhere('t.branch_id = :branchId', { branchId });
 
-    qb.groupBy('day').orderBy('day');
+    qb.groupBy('day, t."sessionId"').orderBy('day');
 
     const rows = await qb.getRawMany();
 
@@ -187,25 +284,44 @@ export class ReportsService {
       const dayStr = r.day;
       const idx = Number(dayStr) - 1;
       if (idx >= 0 && idx < daysInMonth) {
-        series[idx] = this.toNumber(r.total);
-        counts[idx] = this.toNumber(r.count);
+        const paidAmount = await this.getActualPaidAmount(r.sessionId);
+        series[idx] += paidAmount;
+        counts[idx] += this.toNumber(r.count);
       }
     }
 
-    const summaryQ = this.txRepo.createQueryBuilder('t')
-      .select('SUM(t."totalPrice")', 'totalSales')
-      .addSelect('SUM(CASE WHEN t."totalPrice" < 0 THEN t."totalPrice" ELSE 0 END)', 'totalReturns')
-      .addSelect('COUNT(*)', 'transactionsCount')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
+    // Summary
+    const allTxs = await this.txRepo.find({
+      where: {
+        status: In([
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ]),
+        createdAt: Between(start, end),
+        ...(branchId && { branch: { id: branchId } }),
+      },
+    });
 
-    if (branchId) summaryQ.andWhere('t.branch_id = :branchId', { branchId });
+    let totalSales = 0;
+    let totalReturns = 0;
+    const processedSessions = new Set<string>();
 
-    const summaryRaw = await summaryQ.getRawOne();
-    const totalSales = this.toNumber(summaryRaw?.totalSales);
-    const totalReturns = Math.abs(this.toNumber(summaryRaw?.totalReturns || 0));
+    for (const tx of allTxs) {
+      if (processedSessions.has(tx.sessionId)) continue;
+      processedSessions.add(tx.sessionId);
+
+      const paidAmount = await this.getActualPaidAmount(tx.sessionId);
+
+      if (tx.totalPrice < 0) {
+        totalReturns += Math.abs(tx.totalPrice);
+      } else {
+        totalSales += paidAmount;
+      }
+    }
+
     const netTotal = totalSales - totalReturns;
-    const transactionsCount = this.toNumber(summaryRaw?.transactionsCount);
+    const transactionsCount = allTxs.length;
 
     return {
       success: true,
@@ -223,46 +339,86 @@ export class ReportsService {
     const start = new Date(year, 0, 1, 0, 0, 0, 0);
     const end = new Date(year, 11, 31, 23, 59, 59, 999);
 
-    const qb = this.txRepo.createQueryBuilder('t')
-      .select("to_char(t.\"createdAt\", 'MM')", 'month')
-      .addSelect('SUM(t."totalPrice")', 'total')
+    const qb = this.txRepo
+      .createQueryBuilder('t')
+      .select('to_char(t."createdAt", \'MM\')', 'month')
+      .addSelect('t."sessionId"', 'sessionId')
+      .addSelect('SUM(t."totalPrice")', 'totalPrice')
       .addSelect('COUNT(*)', 'count')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
+      .where('t.status IN (:...statuses)', {
+        statuses: [
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ],
+      })
       .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
 
     if (branchId) qb.andWhere('t.branch_id = :branchId', { branchId });
 
-    qb.groupBy('month').orderBy('month');
+    qb.groupBy('month, t."sessionId"').orderBy('month');
 
     const rows = await qb.getRawMany();
 
-    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     const labels = monthNames.slice();
     const series = new Array(12).fill(0);
     const counts = new Array(12).fill(0);
 
     for (const r of rows) {
       const idx = Number(r.month) - 1;
-      if (idx >=0 && idx < 12) {
-        series[idx] = this.toNumber(r.total);
-        counts[idx] = this.toNumber(r.count);
+      if (idx >= 0 && idx < 12) {
+        const paidAmount = await this.getActualPaidAmount(r.sessionId);
+        series[idx] += paidAmount;
+        counts[idx] += this.toNumber(r.count);
       }
     }
 
-    const summaryQ = this.txRepo.createQueryBuilder('t')
-      .select('SUM(t."totalPrice")', 'totalSales')
-      .addSelect('SUM(CASE WHEN t."totalPrice" < 0 THEN t."totalPrice" ELSE 0 END)', 'totalReturns')
-      .addSelect('COUNT(*)', 'transactionsCount')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
+    // Summary
+    const allTxs = await this.txRepo.find({
+      where: {
+        status: In([
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ]),
+        createdAt: Between(start, end),
+        ...(branchId && { branch: { id: branchId } }),
+      },
+    });
 
-    if (branchId) summaryQ.andWhere('t.branch_id = :branchId', { branchId });
+    let totalSales = 0;
+    let totalReturns = 0;
+    const processedSessions = new Set<string>();
 
-    const summaryRaw = await summaryQ.getRawOne();
-    const totalSales = this.toNumber(summaryRaw?.totalSales);
-    const totalReturns = Math.abs(this.toNumber(summaryRaw?.totalReturns || 0));
+    for (const tx of allTxs) {
+      if (processedSessions.has(tx.sessionId)) continue;
+      processedSessions.add(tx.sessionId);
+
+      const paidAmount = await this.getActualPaidAmount(tx.sessionId);
+
+      if (tx.totalPrice < 0) {
+        totalReturns += Math.abs(tx.totalPrice);
+      } else {
+        totalSales += paidAmount;
+      }
+    }
+
     const netTotal = totalSales - totalReturns;
-    const transactionsCount = this.toNumber(summaryRaw?.transactionsCount);
+    const transactionsCount = allTxs.length;
 
     return {
       success: true,
@@ -277,39 +433,117 @@ export class ReportsService {
 
   // top selling products for given period
   async topProducts(start: Date, end: Date, limit = 10, branchId?: string) {
-    const qb = this.txRepo.createQueryBuilder('t')
+    const qb = this.txRepo
+      .createQueryBuilder('t')
       .select('t."productId"', 'productId')
+      .addSelect('t."sessionId"', 'sessionId')
       .addSelect('SUM(COALESCE(t.quantity, 0))', 'totalQuantity')
-      .addSelect('SUM(t."totalPrice")', 'totalRevenue')
-      .where('t.status = :status', { status: TransactionStatus.COMPLETED })
-      .andWhere('t."created_at" BETWEEN :start AND :end', { start, end });
+      .addSelect('SUM(t."totalPrice")', 'totalPrice')
+      .where('t.status IN (:...statuses)', {
+        statuses: [
+          TransactionStatus.COMPLETED,
+          TransactionStatus.PARTIAL,
+          TransactionStatus.DEBT,
+        ],
+      })
+      .andWhere('t."createdAt" BETWEEN :start AND :end', { start, end });
 
     if (branchId) qb.andWhere('t.branch_id = :branchId', { branchId });
 
-    qb.groupBy('t."productId"')
-      .orderBy('SUM(COALESCE(t.quantity, 0))', 'DESC')
-      .limit(limit);
+    qb.groupBy('t."productId", t."sessionId"').orderBy(
+      'SUM(COALESCE(t.quantity, 0))',
+      'DESC',
+    );
 
     const rows = await qb.getRawMany();
 
-    const productIds = rows.map(r => r.productid || r.productId);
-    const products = productIds.length ? await this.productRepo.findByIds(productIds) : [];
+    // Mahsulotlar bo'yicha guruhlash va haqiqiy daromadni hisoblash
+    const productMap = new Map<
+      string,
+      {
+        quantity: number;
+        revenue: number;
+        sessions: Set<string>;
+      }
+    >();
 
-    const map = new Map<string, any>();
-    for (const p of products) map.set(p.id, p);
-
-    const result = rows.map(r => {
+    for (const r of rows) {
       const pid = r.productid || r.productId;
-      const p = map.get(pid);
+      const sessionId = r.sessionId;
+
+      if (!productMap.has(pid)) {
+        productMap.set(pid, {
+          quantity: 0,
+          revenue: 0,
+          sessions: new Set(),
+        });
+      }
+
+      const data = productMap.get(pid)!;
+      data.quantity += this.toNumber(r.totalQuantity);
+
+      // Agar session avval qaralgan bo'lsa, o'tkazib yuborish
+      if (!data.sessions.has(sessionId)) {
+        data.sessions.add(sessionId);
+
+        // Session uchun haqiqiy to'langan summani hisoblash
+        const payment = await this.paymentRepo.findOne({
+          where: { sessionId },
+        });
+
+        if (payment && payment.paidBreakdown) {
+          const totalPaid =
+            (payment.paidBreakdown.cash || 0) +
+            (payment.paidBreakdown.terminal || 0) +
+            (payment.paidBreakdown.click || 0);
+
+          const totalSum = payment.totalSum || 0;
+          const totalPrice = this.toNumber(r.totalPrice);
+
+          // Proportional hisoblash: mahsulot narxining to'langan qismi
+          const paidRatio = totalSum > 0 ? totalPaid / totalSum : 0;
+          const productRevenue = totalPrice * paidRatio;
+
+          data.revenue += productRevenue;
+        }
+      }
+    }
+
+    // Map'dan array'ga o'tkazish va saralash
+    const productData = Array.from(productMap.entries())
+      .map(([productId, data]) => ({
+        productId,
+        totalQuantity: data.quantity,
+        totalRevenue: data.revenue,
+      }))
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, limit);
+
+    // Mahsulot ma'lumotlarini olish
+    const productIds = productData.map((d) => d.productId);
+    const products = productIds.length
+      ? await this.productRepo.findByIds(productIds)
+      : [];
+
+    const productInfoMap = new Map<string, any>();
+    for (const p of products) productInfoMap.set(p.id, p);
+
+    const result = productData.map((d) => {
+      const p = productInfoMap.get(d.productId);
       return {
-        productId: pid,
+        productId: d.productId,
         name: p?.name || null,
         barcode: p?.barcode || null,
-        totalQuantity: this.toNumber(r.totalQuantity),
-        totalRevenue: this.toNumber(r.totalRevenue),
+        totalQuantity: d.totalQuantity,
+        totalRevenue: Math.round(d.totalRevenue),
       };
     });
 
-    return { success: true, start: start.toISOString(), end: end.toISOString(), items: result };
+    return {
+      success: true,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      items: result,
+    };
   }
 }

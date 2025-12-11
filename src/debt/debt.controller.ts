@@ -8,13 +8,17 @@ import { ApiConsumes } from '@nestjs/swagger';
 export class DebtController {
   constructor(private readonly service: DebtService) {}
 
-  @Post()
-  @ApiConsumes('multipart/form-data')
-  create() {
-    return this.service.create();
+  @Get()
+  getAllDebts(){
+    return this.service.getAllDebts()
   }
 
-  @Get()
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
+
+  @Get('status')
   list(@Query('status') status?: string) {
     return this.service.list(status);
   }

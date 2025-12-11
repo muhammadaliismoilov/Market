@@ -10,9 +10,11 @@ import { TransactionService } from './transactions.service';
 import { TransactionsGateway } from '../websockets/transactions.gateway';
 import { AuthModule } from '../auth/auth.module';
 import { TransactionCleanerService } from './transaction-cleaner.service';
+import { Debt } from 'src/debt/debt.entity';
+import { Payment } from 'src/peyments/payment.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Transactions, Products, Users, Branchs]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Transactions, Products, Users,Debt,Payment, Branchs]), AuthModule],
   controllers: [TransactionController],
   providers: [TransactionService, TransactionsGateway,TransactionCleanerService],
   exports: [TransactionService],
