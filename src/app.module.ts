@@ -3,8 +3,13 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsModule } from './products/products.module';
 import { BranchsModule } from './branchs/branchs.module';
-import { TransactionsModule } from './transactions/transactions.module';
+import { ScheduleModule } from '@nestjs/schedule'; 
 import { UserModule } from './users/users.module';
+import { TransactionModule } from './transactions/transactions.module';
+import { AuthModule } from './auth/auth.module';
+import { ReportsModule } from './reports/reports.module';
+import { PaymentsModule } from './peyments/payments.module';
+import { DebtModule } from './debt/debt.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
@@ -22,11 +27,15 @@ import { UserModule } from './users/users.module';
         synchronize: true,
       }),
     }),
+     ScheduleModule.forRoot(),
+    AuthModule,
+    BranchsModule,
     UserModule,
     ProductsModule,
-    BranchsModule,
-    TransactionsModule,
+    TransactionModule,
+    PaymentsModule,
+    DebtModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}
-

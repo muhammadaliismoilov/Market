@@ -1,9 +1,12 @@
+import { Branchs } from 'src/branchs/branch.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 export enum ProductType {
@@ -12,24 +15,24 @@ export enum ProductType {
 }
 
 @Entity()
-export class Product {
+export class Products {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   name: string;
 
-  @Column('int')
+  @Column('int', { nullable: true })
   count: number;
 
-  @Column('float')
+  @Column('float', { nullable: true })
   weight: number;
 
   @Column('float')
   price: number;
 
-  @Column({ length: 13, unique: true })
-  barcode: number; // 13 xonali shtrix-kod
+  @Column({ type: 'varchar', length: 13, unique: true })
+  barcode: string; // 13 xonali shtrix-kod
 
   @Column('float')
   costPrice: number; // mahsulot tannarxi
@@ -37,12 +40,28 @@ export class Product {
   @Column({
     type: 'enum',
     enum: ProductType,
+    array: true,
+    default: '{}', // bo‘sh array
   })
-  type: ProductType;
+  type: ProductType[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @ManyToOne(() => Branchs, (b) => b.products, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    eager: true,
+  })
+  @JoinColumn({ name: 'branchId' })
+  branch: Branchs;
+
+  @Column({ type: 'boolean', default: false })
+  isByWeight: boolean; // Kg bilan sotilsa true, dona bilan false
+
+  @Column({ nullable: true, default: false })
+  onDelete: boolean;
+
+  @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updatedAt' })
   updatedAt: Date;
 }

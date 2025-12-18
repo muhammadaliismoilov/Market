@@ -5,12 +5,16 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { Transaction } from '../transactions/transaction.entity';
+import { Transactions } from '../transactions/transaction.entity';
+import { Branchs } from 'src/branchs/branch.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
   CASHIER = 'cashier',
+  DISTRIBUTOR = 'distributor'
 }
 
 @Entity()
@@ -24,6 +28,9 @@ export class Users {
   @Column({ unique: true })
   phone: string;
 
+  @Column()
+  password: string;
+
   @Column({
     type: 'enum',
     enum: UserRole,
@@ -31,12 +38,17 @@ export class Users {
   })
   role: UserRole;
 
-  @OneToMany(() => Transaction, (t) => t.user)
-  transactions: Transaction[];
+  @OneToMany(() => Transactions, (t) => t.user,{nullable: true, onDelete: 'SET NULL', eager: true })
+  transactions: Transactions[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @ManyToOne(() => Branchs, (branch) => branch.user,{nullable: true, onDelete: 'SET NULL', eager: true })
+  @JoinColumn({ name: 'branchId' })
+  branch:Branchs;
+
+
+  @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updatedAt' })
   updatedAt: Date;
 }

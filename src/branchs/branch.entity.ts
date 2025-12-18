@@ -1,9 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
-import { Transaction } from "../transactions/transaction.entity";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  UpdateDateColumn,
+  CreateDateColumn,
+} from 'typeorm';
+import { Transactions } from '../transactions/transaction.entity';
+import { Users } from 'src/users/users.entity';
+import { Products } from 'src/products/product.entity';
 
 @Entity()
-export class Branch {
-  @PrimaryGeneratedColumn("uuid")
+export class Branchs {
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ unique: true })
@@ -12,6 +21,18 @@ export class Branch {
   @Column()
   location: string;
 
-  @OneToMany(() => Transaction, (t) => t.branch)
-  transactions: Transaction[];
+  @OneToMany(() => Transactions, (t) => t.branch)
+  transactions: Transactions[];
+
+  @OneToMany(() => Users, (user) => user.branch, {onDelete:'CASCADE'})
+  user: Users[]
+
+  @OneToMany(() => Products, (p) => p.branch, {onDelete:'CASCADE'})
+  products:Products[]
+
+  @CreateDateColumn({ name: 'createdAt' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updatedAt' })
+  updatedAt: Date;
 }

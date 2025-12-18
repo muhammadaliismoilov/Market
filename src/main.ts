@@ -2,9 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // register interceptor globally so all requests/responses get date formatting
+  app.useGlobalInterceptors(new DateFormatInterceptor());
+
+  app.enableCors({
+  origin: ['http://localhost:3000', 'http://localhost:5173'], // Frontend URL
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
   app.useGlobalPipes(
   new ValidationPipe({
@@ -29,7 +40,7 @@ async function bootstrap() {
         description: 'JWT tokenni kiriting: Bearer <token>',
         in: 'header',
       },
-      'JWT-auth',
+      'bearer',
     )
     .build();
   const document = require('@nestjs/swagger').SwaggerModule.createDocument(app, config);
