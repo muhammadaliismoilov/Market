@@ -53,6 +53,7 @@ export class DebtService {
 
     // Status yangilash
     if (debt.remainingDebt <= 0) {
+      // To'liq to'landi - hammasini 0 ga teng qilish
       debt.remainingDebt = 0;
       debt.status = 'paid';
 
@@ -62,10 +63,10 @@ export class DebtService {
         { status: TransactionStatus.COMPLETED }
       );
     } else {
-      // Qisman to'lov
+      // Qisman to'landi - status partial
       debt.status = 'partial';
 
-      // Transaction statusini PARTIAL qoldirish (yoki PARTIAL ga o'zgartirish)
+      // Transaction statusini PARTIAL ga o'zgartirish
       await this.transactionRepo.update(
         { sessionId: debt.sessionId },
         { status: TransactionStatus.PARTIAL }
