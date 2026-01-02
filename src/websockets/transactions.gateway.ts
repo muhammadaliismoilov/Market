@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { log } from 'node:console';
+// TO'G'RILANDI: Ishlatilmagan log import o'chirildi
 
 @WebSocketGateway({ namespace: '/transactions', cors: { origin: '*' } })
 export class TransactionsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -24,8 +24,14 @@ export class TransactionsGateway implements OnGatewayInit, OnGatewayConnection, 
       const token = (socket.handshake.auth && socket.handshake.auth.token) || socket.handshake.query?.token;
       if (!token) throw new Error('No token');
 
+      // TO'G'RILANDI: Default secret olib tashlandi, .env da bo'lishi shart
+      const jwtSecret = this.config.get<string>('JWT_SECRET');
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET environment variable sozlanmagan');
+      }
+
       const payload: any = await this.jwtService.verifyAsync(String(token), {
-        secret: this.config.get<string>('JWT_SECRET') || 'access_secret',
+        secret: jwtSecret,
       });
   
 

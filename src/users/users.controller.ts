@@ -9,19 +9,31 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiOperation, ApiQuery } from '@nestjs/swagger';
-
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  ApiTags,
+  ApiResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 import { UserService } from './users.service';
+import { JwtAuthGuard } from 'src/common/guard/jwt.auth.guard';
+import { RolesGuard } from 'src/common/guard/roles.guard';
+import { Roles } from 'src/common/guard/jwt.decarator';
+import { UserRole } from './users.entity';
 
 @ApiTags('Users')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @Roles('admin')
   @ApiOperation({ summary: 'Yangi user yaratish' })
   @ApiResponse({ status: 201, description: 'User yaratildi' })
   create(@Body() dto: CreateUserDto) {
@@ -48,6 +60,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  // @Roles('admin')
   @ApiOperation({ summary: 'Userni yangilash' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -56,6 +69,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @Roles('admin')
   @ApiOperation({ summary: 'Userni o‘chirish' })
   @ApiResponse({ status: 200, description: 'User o‘chirildi' })
   @ApiResponse({ status: 404 })

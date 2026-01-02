@@ -8,6 +8,8 @@ import {
   UseGuards,
   Request,
   Patch,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,6 +17,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { TransactionService } from './transactions.service';
 import {
@@ -23,13 +26,17 @@ import {
   ReturnTransactionDto,
 } from './dto/transaction.dto';
 import { JwtAuthGuard } from '../common/guard/jwt.auth.guard';
+import { TransactionCleanerService } from './transaction-cleaner.service';
 
 @ApiTags('Transactions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('transactions')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(
+    private readonly transactionService: TransactionService,
+    private readonly transactionCleanerService: TransactionCleanerService,
+  ) {}
 
   @Post('scan')
   @ApiOperation({
@@ -42,7 +49,6 @@ export class TransactionController {
   async scanProduct(@Request() req, @Body() scanDto: TransactionScanDto) {
     return this.transactionService.scanProduct(req.user.userId, scanDto);
   }
-
 
   // @Post('universal/:userId')
   // @ApiOperation({ summary: 'Bir yoki bir nechta mahsulotni sotish' })
@@ -95,5 +101,16 @@ export class TransactionController {
   @ApiResponse({ status: 200, description: 'Kunlik hisobot' })
   async getDailyReport(@Request() req, @Query('date') date?: string) {
     return this.transactionService.getCashierDailyReport(req.user.userId, date);
+  }
+
+  @Delete('cancel-session/:sessionId')
+  @ApiOperation({ summary: 'Sessionni bekor qilish (yakunlanmagan savdo)' })
+  @ApiParam({
+    name: 'sessionId',
+    required: true,
+    description: 'Bekor qilinadigan sessiya ID',
+  })
+  async cancelSession(@Param('sessionId') sessionId: string) {
+    return this.transactionCleanerService.cancelSession(sessionId);
   }
 }

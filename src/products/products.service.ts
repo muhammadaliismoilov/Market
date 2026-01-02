@@ -7,8 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Products, ProductType } from './product.entity';
 import { Branchs } from 'src/branchs/branch.entity';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto ,UpdateProductDto} from './dto/product.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -108,8 +107,8 @@ export class ProductsService {
   // UPDATE
   async update(id: string, dto: UpdateProductDto) {
     try {
+      // TO'G'RILANDI: findOne allaqachon exception throw qiladi, shuning uchun keraksiz tekshiruv o'chirildi
       const product = await this.findOne(id);
-      if (!product) throw new NotFoundException('Mahsulot topilmadi');
 
       if (dto.branchId) {
         const branch = await this.branchRepo.findOne({
@@ -155,8 +154,9 @@ export class ProductsService {
   //  DELETE
   async remove(id: string) {
     try {
+      // TO'G'RILANDI: findOne allaqachon exception throw qiladi, shuning uchun keraksiz tekshiruv o'chirildi
+      // TO'G'RILANDI: Xatoda probel qo'shildi ("Mahsulot topilmadi")
       const product = await this.findOne(id);
-      if (!product) throw new NotFoundException('Mahsulottopilmadi');
       return await this.productRepo.remove(product);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;

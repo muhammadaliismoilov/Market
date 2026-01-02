@@ -20,10 +20,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(Users)
     private userRepo: Repository<Users>,
   ) {
+    // TO'G'RILANDI: Secret'ni tekshirish va TypeScript xatosini hal qilish
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable sozlanmagan');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'your-secret-key-change-this',
+      secretOrKey: secret, // Artiq undefined bo'lishi mumkin emas
     });
   }
 

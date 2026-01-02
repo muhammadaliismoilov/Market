@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { log } from 'node:console';
+// TO'G'RILANDI: ishlatilmagan log import o'chirildi
 
 export const ROLES_KEY = 'roles';
 
@@ -25,9 +25,6 @@ export class RolesGuard implements CanActivate {
     }
 
     const hasRole = requiredRoles.some((role) => user.role === role);
- 
-    
-
     if (!hasRole) {
       throw new ForbiddenException('Sizda bu amalni bajarish uchun ruxsat yo\'q');
     }

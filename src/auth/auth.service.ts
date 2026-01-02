@@ -1,6 +1,7 @@
 // auth/auth.service.ts
 import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config'; // TO'G'RILANDI: ConfigService import qilindi
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -13,6 +14,7 @@ export class AuthService {
     @InjectRepository(Users)
     private userRepo: Repository<Users>,
     private jwtService: JwtService,
+    private configService: ConfigService, // TO'G'RILANDI: ConfigService inject qilindi
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -84,13 +86,22 @@ export class AuthService {
       role: user.role,
     };
 
-   const [accessToken, refreshToken] = await Promise.all([
+    // TO'G'RILANDI: ConfigService orqali secret olinadi, default qiymatlar olib tashlandi
+    // Eslatma: JWT_SECRET va JWT_REFRESH_SECRET .env faylida bo'lishi shart
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const jwtRefreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    
+    if (!jwtSecret || !jwtRefreshSecret) {
+      throw new Error('JWT_SECRET va JWT_REFRESH_SECRET environment variable\'lari sozlanmagan');
+    }
+
+    const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_SECRET || 'access_secret',
-        expiresIn: '15m',
+        secret: jwtSecret,
+        expiresIn: '1d',
       }),
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+        secret: jwtRefreshSecret,
         expiresIn: '7d',
       }),
     ]);

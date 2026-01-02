@@ -8,8 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Users } from '../users/users.entity';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto,UpdateUserDto } from './dto/users.dto';
 import { Branchs } from 'src/branchs/branch.entity';
 
 @Injectable()
@@ -47,11 +46,11 @@ export class UserService {
       if (error instanceof NotFoundException) {
         throw error;
       }
+      // TO'G'RILANDI: ishlatilmagan error.message qatori o'chirildi
       throw new InternalServerErrorException(
         'User yaratishda serverda xatolik yuz berdi',
         error.message,
       );
-      error.message;
     }
   }
 
@@ -81,8 +80,8 @@ export class UserService {
 
   async update(id: string, dto: UpdateUserDto) {
   try {
+    // TO'G'RILANDI: findOne allaqachon exception throw qiladi, shuning uchun keraksiz tekshiruv o'chirildi
     const user = await this.findOne(id);
-    if (!user) throw new NotFoundException('User topilmadi');
 
     // Agar branchId berilgan bo'lsa, branchni topish va biriktirish
     if (dto.branchId) {
@@ -94,12 +93,19 @@ export class UserService {
     }
 
     // Faqat defined (!== undefined) fieldlarni yangilash
-    const allowedFields: (keyof UpdateUserDto)[] = ['fullName', 'phone', 'password', 'role'];
+    // TO'G'RILANDI: password yangilanganda hash qilinishi kerak
+    const allowedFields: (keyof UpdateUserDto)[] = ['fullName', 'phone', 'role'];
     allowedFields.forEach((field) => {
       if (dto[field] !== undefined) {
         user[field] = dto[field];
       }
     });
+
+    // Password alohida tekshiriladi va hash qilinadi
+    if (dto.password !== undefined && dto.password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      user.password = hashedPassword;
+    }
 
     return await this.userRepo.save(user);
   } catch (error) {
@@ -114,8 +120,8 @@ export class UserService {
 
   async remove(id: string) {
     try {
+      // TO'G'RILANDI: findOne allaqachon exception throw qiladi, shuning uchun keraksiz tekshiruv o'chirildi
       const user = await this.findOne(id);
-      if (!user) throw new NotFoundException('User topilmadi');
 
       await this.userRepo.remove(user);
       return { message: 'User muvaffaqiyatli o‘chirildi' };

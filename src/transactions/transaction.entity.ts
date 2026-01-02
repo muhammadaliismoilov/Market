@@ -1,63 +1,36 @@
-// import { Branchs } from "src/branchs/branch.entity";
-// import { Products } from "src/products/product.entity";
-// import { Users } from "src/users/users.entity";
-// import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, UpdateDateColumn } from "typeorm";
-
-
-// @Entity()
-// export class Transactions {
-//   @PrimaryGeneratedColumn("uuid")
-//   id: string;
-
-//   @ManyToOne(() => Users, (u) => u.transactions)
-//   user: Users;
-
-//   @ManyToOne(() => Products)
-//   product: Products;
-
-//   @ManyToOne(() => Branchs, (b) => b.transactions)
-//   branch: Branchs;
-
-//   @Column("int")
-//   quantity: number;
-
-//   @Column("float")
-//   totalPrice: number;
-
-//   @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
-//   createdAt: Date;
-
-//   @UpdateDateColumn({ name: 'updated_at' })
-//   updatedAt: Date;
-// }
-
-import { Branchs } from "src/branchs/branch.entity";
-import { Products } from "src/products/product.entity";
-import { Users } from "src/users/users.entity";
-import { 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Column, 
-  ManyToOne, 
-  CreateDateColumn, 
+import { Branchs } from 'src/branchs/branch.entity';
+import { Debt } from 'src/debt/debt.entity';
+// TO'G'RILANDI: Ishlatilmagan Payment import o'chirildi (relation o'chirilgani uchun)
+import { Products } from 'src/products/product.entity';
+import { Users } from 'src/users/users.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
   UpdateDateColumn,
-  JoinColumn 
-} from "typeorm";
+  JoinColumn,
+  // TO'G'RILANDI: Ishlatilmagan ManyToMany import o'chirildi
+  OneToMany,
+} from 'typeorm';
 
 export enum TransactionType {
   SALE = 'SALE',
-  RETURN = 'RETURN'
+  RETURN = 'RETURN',
 }
 
 export enum TransactionStatus {
+  DEBT = 'DEBT',
+  PARTIAL ='PARTIAL',
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  CANCELLED = 'CANCELLED',
 }
 
 @Entity()
 export class Transactions {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @ManyToOne(() => Users, (u) => u.transactions)
@@ -72,8 +45,14 @@ export class Transactions {
   @JoinColumn({ name: 'branchId' })
   branch: Branchs;
 
+  // TO'G'RILANDI: ManyToMany relation o'chirildi, chunki Payment entity da ham o'chirildi
+  // Payment va Transaction sessionId orqali bog'lanadi, shuning uchun relation kerak emas
+  // @ManyToMany(() => Payment, (payment) => payment.transaction)
+  // payments: Payment[];
+
   @Column({ type: 'varchar', unique: true })
   transactionNumber: string; // Unikal tranzaksiya raqami
+
 
   @Column({ type: 'varchar' })
   barcode: string;
@@ -93,14 +72,14 @@ export class Transactions {
   @Column({
     type: 'enum',
     enum: TransactionType,
-    default: TransactionType.SALE
+    default: TransactionType.SALE,
   })
   type: TransactionType;
 
   @Column({
     type: 'enum',
     enum: TransactionStatus,
-    default: TransactionStatus.PENDING
+    default: TransactionStatus.PENDING,
   })
   status: TransactionStatus;
 

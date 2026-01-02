@@ -15,12 +15,19 @@ import { Users } from '../users/users.entity';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'your-secret-key-change-this',
-        signOptions: {
-          expiresIn: '24h', // Token 24 soat amal qiladi
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        // TO'G'RILANDI: Secret'ni tekshirish va agar yo'q bo'lsa error throw qilish
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable sozlanmagan');
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: '24h', // Token 24 soat amal qiladi
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
