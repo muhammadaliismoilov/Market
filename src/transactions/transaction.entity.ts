@@ -1,6 +1,6 @@
 import { Branchs } from 'src/branchs/branch.entity';
 import { Debt } from 'src/debt/debt.entity';
-import { Payment } from 'src/peyments/payment.entity';
+// TO'G'RILANDI: Ishlatilmagan Payment import o'chirildi (relation o'chirilgani uchun)
 import { Products } from 'src/products/product.entity';
 import { Users } from 'src/users/users.entity';
 import {
@@ -11,7 +11,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
-  ManyToMany,
+  // TO'G'RILANDI: Ishlatilmagan ManyToMany import o'chirildi
   OneToMany,
 } from 'typeorm';
 
@@ -45,11 +45,14 @@ export class Transactions {
   @JoinColumn({ name: 'branchId' })
   branch: Branchs;
 
-  @ManyToMany(() => Payment, (payment) => payment.transaction)
-  payments: Payment[];
+  // TO'G'RILANDI: ManyToMany relation o'chirildi, chunki Payment entity da ham o'chirildi
+  // Payment va Transaction sessionId orqali bog'lanadi, shuning uchun relation kerak emas
+  // @ManyToMany(() => Payment, (payment) => payment.transaction)
+  // payments: Payment[];
 
   @Column({ type: 'varchar', unique: true })
   transactionNumber: string; // Unikal tranzaksiya raqami
+
 
   @Column({ type: 'varchar' })
   barcode: string;

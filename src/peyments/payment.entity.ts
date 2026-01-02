@@ -1,24 +1,13 @@
-import {
-  IsArray,
-  IsEnum,
-  IsNumber,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+// TO'G'RILANDI: Ishlatilmagan class-validator importlar o'chirildi (entity faylida kerak emas)
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
   UpdateDateColumn,
-  ManyToMany,
+  // TO'G'RILANDI: Ishlatilmagan ManyToOne, JoinColumn, ManyToMany importlar o'chirildi
 } from 'typeorm';
-import { Transactions } from '../transactions/transaction.entity'; // mavjud transaction entity yo'lini tekshiring
+// TO'G'RILANDI: Ishlatilmagan Transactions import o'chirildi (relation o'chirilgani uchun)
 
 export enum PaymentMethod {
   CASH = 'naqt',
@@ -32,12 +21,9 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToMany(() => Transactions, (transaction) => transaction.payments, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'transactionId' })
-  transaction?: Transactions;
+  // TO'G'RILANDI: ManyToMany relation o'chirildi, chunki ManyToMany bilan @JoinColumn ishlatilmaydi
+  // Payment entity sessionId orqali transactionlar bilan bog'lanadi, shuning uchun relation kerak emas
+  // Agar relation kerak bo'lsa, @JoinTable ishlatilishi kerak, lekin bu yerda sessionId orqali bog'lanishadi
 
   @Column()
   sessionId: string;

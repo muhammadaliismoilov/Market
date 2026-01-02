@@ -33,8 +33,14 @@ export class PaymentGateway
       const token = (socket.handshake.auth && socket.handshake.auth.token) || socket.handshake.query?.token;
       if (!token) throw new Error('No token');
 
+      // TO'G'RILANDI: Default secret olib tashlandi, .env da bo'lishi shart
+      const jwtSecret = this.config.get<string>('JWT_SECRET');
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET environment variable sozlanmagan');
+      }
+
       const payload: any = await this.jwtService.verifyAsync(String(token), {
-        secret: this.config.get<string>('JWT_SECRET') || 'access_secret',
+        secret: jwtSecret,
       });
   
 
