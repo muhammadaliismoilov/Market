@@ -60,7 +60,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  // @Roles('admin')
   @ApiOperation({ summary: 'Userni yangilash' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
