@@ -26,14 +26,14 @@ import { Roles } from 'src/common/guard/jwt.decarator';
 import { UserRole } from './users.entity';
 
 @ApiTags('Users')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @ApiBearerAuth()
+// @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  @Roles('admin')
+  // @Roles('admin')
   @ApiOperation({ summary: 'Yangi user yaratish' })
   @ApiResponse({ status: 201, description: 'User yaratildi' })
   create(@Body() dto: CreateUserDto) {

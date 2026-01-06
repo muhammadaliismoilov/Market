@@ -50,16 +50,6 @@ export class TransactionController {
     return this.transactionService.scanProduct(req.user.userId, scanDto);
   }
 
-  // @Post('universal/:userId')
-  // @ApiOperation({ summary: 'Bir yoki bir nechta mahsulotni sotish' })
-  // @ApiResponse({ status: 201, description: 'Sotuv muvaffaqiyatli amalga oshirildi' })
-  // @ApiResponse({ status: 400, description: 'Validation error / Omborda yetarli mahsulot yo‘q' })
-  // async createUniversalTransaction(
-  //   @Request() req,
-  //   @Body() dto: CreateUniversalTransactionDto,
-  // ) {
-  //   return this.transactionService.createUniversalTransaction(req.user.userId, dto);
-  // }
 
   @Get('session')
   @ApiOperation({ summary: "Sessiya bo'yicha tranzaksiyalarni ko'rish" })

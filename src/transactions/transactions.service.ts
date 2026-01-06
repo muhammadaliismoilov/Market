@@ -55,9 +55,13 @@ export class TransactionService {
         where: { id: userId },
         relations: ['branch'],
       });
-      if (!user || !user.branch) {
-        throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
-      }
+      console.log(user);
+      
+     if (!user) {
+  throw new NotFoundException('Foydalanuvchi topilmadi');
+}
+
+
 
       // Avvalgi pending sessiyani topish yoki yangisini yaratish
       const usedSessionId = await (async (): Promise<string> => {
@@ -102,7 +106,7 @@ export class TransactionService {
       const tx = new Transactions();
       tx.user = user;
       tx.product = product;
-      tx.branch = user.branch;
+      tx.branch = user.branch ?? null;
       tx.transactionNumber = transactionNumber;
       tx.barcode = barcode;
       tx.quantity = finalQuantity;
