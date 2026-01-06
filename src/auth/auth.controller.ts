@@ -37,6 +37,10 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
+    if (!result) {
+      throw new Error('Login failed');
+    }
+
     const { accessToken, refreshToken } = result;
 
     // 🍪 ACCESS TOKEN
