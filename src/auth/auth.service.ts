@@ -1,6 +1,13 @@
 // auth/auth.service.ts
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config'; // TO'G'RILANDI: ConfigService import qilindi
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -13,32 +20,29 @@ export class AuthService {
     @InjectRepository(Users)
     private userRepo: Repository<Users>,
     private jwtService: JwtService,
+    private configService: ConfigService, // TO'G'RILANDI: ConfigService inject qilindi
   ) {}
 
   async login(loginDto: LoginDto) {
     try {
       const { phone, password } = loginDto;
 
-      // Foydalanuvchini topish
-      const user = await this.userRepo.findOne({ 
+      const user = await this.userRepo.findOne({
         where: { phone },
-        relations: ['branch']
+        relations: ['branch'],
       });
 
       if (!user) {
         throw new NotFoundException('Foydalanuvchi topilmadi');
       }
 
-      // Parolni tekshirish
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Telefon yoki parol noto\'g\'ri');
+        throw new UnauthorizedException("Telefon yoki parol noto'g'ri");
       }
 
-      // Token yaratish
       const token = await this.generateToken(user);
 
-      
       return {
         success: true,
         message: 'Tizimga kirish muvaffaqiyatli',
@@ -59,8 +63,8 @@ export class AuthService {
   async logout(userId: string) {
     try {
       // Foydalanuvchini tekshirish
-      const user = await this.userRepo.findOne({ 
-        where: { id: userId }
+      const user = await this.userRepo.findOne({
+        where: { id: userId },
       });
 
       if (!user) {
@@ -77,30 +81,42 @@ export class AuthService {
     }
   }
 
-  private async generateToken(user: Users) {
-    const payload = {
-      userId: user.id,
-      phone: user.phone,
-      role: user.role,
-    };
+ 
+private async generateToken(user: Users) {
+  const payload = {
+    userId: user.id,
+    phone: user.phone,
+    role: user.role,
+  };
 
-   const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_SECRET || 'access_secret',
-        expiresIn: '1d',
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-        expiresIn: '7d',
-      }),
-    ]);
-    return { accessToken, refreshToken };
+  const jwtSecret = this.configService.get<string>('JWT_SECRET');
+  const jwtRefreshSecret =
+    this.configService.get<string>('JWT_REFRESH_SECRET');
+
+  if (!jwtSecret || !jwtRefreshSecret) {
+    throw new InternalServerErrorException(
+      'JWT_SECRET yoki JWT_REFRESH_SECRET sozlanmagan',
+    );
   }
 
+  const [accessToken, refreshToken] = await Promise.all([
+    this.jwtService.signAsync(payload, {
+      secret: jwtSecret,
+      expiresIn: '1d',
+    }),
+    this.jwtService.signAsync(payload, {
+      secret: jwtRefreshSecret,
+      expiresIn: '7d',
+    }),
+  ]);
+
+  return { accessToken, refreshToken };
+}
+
   async validateUser(userId: string) {
-    const user = await this.userRepo.findOne({ 
+    const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['branch']
+      relations: ['branch'],
     });
 
     if (!user) {

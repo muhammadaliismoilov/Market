@@ -30,10 +30,10 @@ export class Debt {
   @Column({ default: 'pending' }) // pending, partial, paid
   status: string;
 
+  // TO'G'RILANDI: default UUID o'chirildi, chunki nullable: true bo'lsa default kerak emas
   @Column({
     type: 'uuid',
     nullable: true,
-    default: '00000000-0000-0000-0000-000000000000',
   })
   sessionId: string;
 

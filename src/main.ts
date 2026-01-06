@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'; // TO'G'RILANDI: require o'rniga import qilindi
 import { ValidationPipe } from '@nestjs/common';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 
@@ -10,12 +10,17 @@ async function bootstrap() {
   // register interceptor globally so all requests/responses get date formatting
   app.useGlobalInterceptors(new DateFormatInterceptor());
 
+  // TO'G'RILANDI: CORS origin environment variable ga bog'landi
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:5173']; // Default development origins
+
   app.enableCors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Frontend URL
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-});
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   app.useGlobalPipes(
   new ValidationPipe({
@@ -43,13 +48,13 @@ async function bootstrap() {
       'bearer',
     )
     .build();
-  const document = require('@nestjs/swagger').SwaggerModule.createDocument(app, config);
-  require('@nestjs/swagger').SwaggerModule.setup('api/docs', app, document);
+  // TO'G'RILANDI: require o'rniga import qilingan SwaggerModule ishlatildi
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
- 
-  await app.listen(PORT,  () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
-    console.log(`📖 Swagger docs: http://localhost:${PORT}/api/docs`);
-  });
+  // TO'G'RILANDI: listen callback o'rniga, listen tugagandan keyin log qilindi
+  await app.listen(PORT);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`📖 Swagger docs: http://localhost:${PORT}/api/docs`);
 }
 bootstrap();

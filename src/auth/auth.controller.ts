@@ -37,20 +37,26 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
+    if (!result) {
+      throw new Error('Login failed');
+    }
+
     const { accessToken, refreshToken } = result;
 
     // 🍪 ACCESS TOKEN
+    // TO'G'RILANDI: secure environment variable ga bog'landi va maxAge comment to'g'rilandi (1 soat)
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: false, // productionda true
+      secure: process.env.NODE_ENV === 'production', // productionda true, developmentda false
       sameSite: 'lax',
-      maxAge: 60 * 60 * 1000, // 15 daq
+      maxAge: 60 * 60 * 1000, // 1 soat (3600 sekund)
     });
 
     // 🍪 REFRESH TOKEN
+    // TO'G'RILANDI: secure environment variable ga bog'landi
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: false, // productionda true
+      secure: process.env.NODE_ENV === 'production', // productionda true, developmentda false
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 kun
     });

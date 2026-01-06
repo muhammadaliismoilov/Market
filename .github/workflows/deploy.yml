@@ -1,4 +1,45 @@
-name: Deploy NestJS to VPS
+# name: Deploy NestJS to VPS
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: 20
+
+#       - name: Install dependencies
+#         run: npm install
+
+#       - name: Build project
+#         run: npm run build
+
+#       - name: Deploy to VPS via SSH
+#         uses: appleboy/ssh-action@v1.0.3
+#         with:
+#           host: ${{ secrets.SERVER_IP }}
+#           username: root
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             cd /var/www/market
+#             git pull origin main
+#             npm install
+#             npm run build
+#             pm2 restart market-api || pm2 start dist/main.js --name market-api
+#             pm2 save
+
+
+name: Deploy NestJS (Docker)
 
 on:
   push:
@@ -13,18 +54,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Copy project to VPS
+        uses: appleboy/scp-action@v0.1.7
         with:
-          node-version: 20
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/var/www/market"
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build project
-        run: npm run build
-
-      - name: Deploy to VPS via SSH
+      - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -32,8 +71,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/market
-            git pull origin main
-            npm install
-            npm run build
-            pm2 restart market-api || pm2 start dist/main.js --name market-api
-            pm2 save
+            docker compose down
+            docker compose up -d --build

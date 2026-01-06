@@ -22,7 +22,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionsGateway } from '../websockets/transactions.gateway';
 import { Debt } from 'src/debt/debt.entity';
-import { log } from 'console';
+// TO'G'RILANDI: Ishlatilmagan log import o'chirildi
 import { Payment } from 'src/peyments/payment.entity';
 
 @Injectable()
@@ -55,9 +55,13 @@ export class TransactionService {
         where: { id: userId },
         relations: ['branch'],
       });
-      if (!user || !user.branch) {
-        throw new NotFoundException('Foydalanuvchi yoki filial topilmadi');
-      }
+      console.log(user);
+      
+     if (!user) {
+  throw new NotFoundException('Foydalanuvchi topilmadi');
+}
+
+
 
       // Avvalgi pending sessiyani topish yoki yangisini yaratish
       const usedSessionId = await (async (): Promise<string> => {
@@ -102,7 +106,7 @@ export class TransactionService {
       const tx = new Transactions();
       tx.user = user;
       tx.product = product;
-      tx.branch = user.branch;
+      tx.branch = user.branch ?? null;
       tx.transactionNumber = transactionNumber;
       tx.barcode = barcode;
       tx.quantity = finalQuantity;
@@ -267,11 +271,9 @@ export class TransactionService {
       const { sessionId, notes } = completeDto;
 
       // To'lovlar va qarzlarni olish
+      // TO'G'RILANDI: console.log production kodidan o'chirildi
       const payments = await this.paymentRepo.findOne({ where: { sessionId } });
       const debt = await this.debtRepo.findOne({ where: { sessionId } });
-
-      // console.log('Payment:', payments);
-      console.log('Debt:', debt);
 
       // Tranzaksiyalarni olish
       const transactions = await this.transactionRepo.find({
