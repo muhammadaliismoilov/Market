@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://212.8.226.173:4005/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -15,8 +15,7 @@ api.interceptors.request.use((config) => {
 });
 
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (email, password, role) => api.post('/auth/register', { email, password, role }),
+  login: (phone, password) => api.post('/auth/login', { phone, password }),
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');

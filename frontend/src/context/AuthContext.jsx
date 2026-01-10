@@ -1,7 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../config/supabase';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
+
+const decodeToken = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (err) {
+    return null;
+  }
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -10,29 +26,16 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     checkUser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        localStorage.setItem('user', JSON.stringify(session.user));
-        localStorage.setItem('token', session.session?.access_token || '');
-      } else {
-        setUser(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
-      setLoading(false);
-    });
-
-    return () => subscription?.unsubscribe();
   }, []);
 
   const checkUser = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        localStorage.setItem('user', JSON.stringify(session.user));
-        localStorage.setItem('token', session.session?.access_token || '');
+      const token = localStorage.getItem('token');
+      if (token) {
+        const decoded = decodeToken(token);
+        if (decoded) {
+          setUser(decoded);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -41,38 +44,24 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (phone, password) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      setUser(data.user);
-      return data;
+      const { data } = await authAPI.login(phone, password);
+      if (data?.access_token) {
+        localStorage.setItem('token', data.access_token);
+        const decoded = decodeToken(data.access_token);
+        if (decoded) {
+          setUser(decoded);
+        }
+        return data;
+      }
+      throw new Error('Noto\'g\'ri javob');
     } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signup = async (email, password) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      setError(err.message);
-      throw err;
+      const message = err.response?.data?.message || err.message || 'Login xatosi';
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -82,10 +71,8 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      await supabase.auth.signOut();
+      authAPI.logout();
       setUser(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
     } catch (err) {
       setError(err.message);
       throw err;

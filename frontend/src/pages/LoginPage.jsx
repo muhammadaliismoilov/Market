@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,10 +16,8 @@ export function LoginPage() {
     setError('');
 
     try {
-      const { data } = await login(email, password);
-      if (data?.user) {
-        navigate('/dashboard');
-      }
+      await login(phone, password);
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login xatosi yuz berdi');
     } finally {
@@ -41,13 +39,13 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Email</label>
+            <label className="block text-gray-700 font-semibold mb-2">Telefon raqami</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="input-field"
-              placeholder="emailingiz@example.com"
+              placeholder="+998 XX XXX XX XX"
               required
             />
           </div>
@@ -72,10 +70,6 @@ export function LoginPage() {
             {loading ? 'Kirish...' : 'Kirish'}
           </button>
         </form>
-
-        <p className="text-center text-gray-600 mt-6 text-sm">
-          Akkauntingiz yo'qmi? <a href="/signup" className="text-blue-600 hover:underline">Ro'yxatdan o'tish</a>
-        </p>
       </div>
     </div>
   );
