@@ -7,8 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Products, ProductType } from './product.entity';
 import { Branchs } from 'src/branchs/branch.entity';
-import { CreateProductDto ,UpdateProductDto} from './dto/product.dto';
+import {
+  CreateProductDto,
+  ImportProductsDto,
+  UpdateProductDto,
+} from './dto/product.dto';
 import * as crypto from 'crypto';
+import {
+  ImportErrorRow,
+  ImportSuccessRow,
+} from './interfaces/import-result.interface';
 
 @Injectable()
 export class ProductsService {
@@ -165,5 +173,92 @@ export class ProductsService {
         error?.message,
       );
     }
+  }
+
+  // Mahsulotlarni import qilish
+  async importProductsFromExcel(rows: any[]) {
+    const success: ImportSuccessRow[] = [];
+    const errors: ImportErrorRow[] = [];
+    const productsToSave: Products[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      try {
+        // 1️⃣ Minimal validation
+        if (!row.name || !row.price || !row.costPrice) {
+          throw new Error('Majburiy maydonlar yetishmayapti');
+        }
+
+        // 2️⃣ Type normalize
+        const productType =
+          row.type === 'KG' ? ProductType.KG : ProductType.DONA;
+
+        // 3️⃣ Branch tekshirish
+        let branch: Branchs | null = null;
+        if (row.branchId) {
+          branch = await this.branchRepo.findOne({
+            where: { id: row.branchId },
+          });
+          if (!branch) {
+            throw new Error('Branch topilmadi');
+          }
+        }
+
+        // 4️⃣ Product object yaratish
+        const product = new Products();
+        product.name = String(row.name);
+        product.price = Number(row.price);
+        product.costPrice = Number(row.costPrice);
+        product.barcode = row.barcode
+          ? String(row.barcode)
+          : String(crypto.randomInt(1000000000000, 9999999999999));
+        product.count =
+          productType === ProductType.DONA ? Number(row.count || 0) : 0;
+        product.weight =
+          productType === ProductType.KG ? Number(row.weight || 0) : 0;
+        product.type = [productType];
+        product.isByWeight = productType === ProductType.KG;
+        if (branch) {
+          product.branch = branch;
+        }
+
+        productsToSave.push(product);
+
+        // ✅ Success array to‘liq ma’lumot bilan
+        success.push({
+          row: i + 1,
+          data: {
+            name: product.name,
+            price: product.price,
+            costPrice: product.costPrice,
+            barcode: product.barcode,
+            type: productType,
+            count: product.count,
+            weight: product.weight,
+            branchId: branch ? branch.id : null,
+          },
+        });
+      } catch (err) {
+        errors.push({
+          row: i + 1,
+          barcode: row.barcode || null,
+          error: err.message,
+        });
+      }
+    }
+
+    // 5️⃣ Bulk save
+    if (productsToSave.length > 0) {
+      await this.productRepo.save(productsToSave);
+    }
+
+    return {
+      total: rows.length,
+      successCount: success.length,
+      errorCount: errors.length,
+      success,
+      errors,
+    };
   }
 }
