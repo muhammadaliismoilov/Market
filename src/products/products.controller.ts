@@ -9,9 +9,16 @@ import {
   HttpStatus,
   HttpCode,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { CreateProductDto ,UpdateProductDto} from './dto/product.dto';
+import {
+  CreateProductDto,
+  ImportProductsDto,
+  UpdateProductDto,
+} from './dto/product.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -19,9 +26,13 @@ import {
   ApiParam,
   ApiBody,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { Products } from './product.entity';
 import { JwtAuthGuard } from 'src/common/guard/jwt.auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import * as XLSX from 'xlsx';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -106,5 +117,35 @@ export class ProductsController {
   @ApiResponse({ status: 404, description: 'Mahsulot topilmadi' })
   async remove(@Param('id') id: string) {
     await this.productsService.remove(id);
+  }
+
+  @Post('import')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async importFromExcel(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Excel fayl topilmadi');
+    }
+
+    // Excel faylni o'qish
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    // Excelni JSON formatiga aylantirish
+    const products = XLSX.utils.sheet_to_json(worksheet);
+
+    return this.productsService.importProductsFromExcel(products);
   }
 }

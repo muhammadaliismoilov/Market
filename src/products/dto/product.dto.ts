@@ -10,6 +10,7 @@ import {
   Length,
   IsArray,
   ArrayNotEmpty,
+  ValidateNested,
 } from 'class-validator';
 import { ProductType } from '../product.entity';
 import { Type } from 'class-transformer';
@@ -61,6 +62,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   branchId?: string;
+}
+
+export class ImportProductsDto {
+  @ApiProperty({ type: [CreateProductDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductDto)
+  products: CreateProductDto[];
 }
 
 export class UpdateProductDto {
