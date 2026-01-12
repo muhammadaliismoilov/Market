@@ -71,5 +71,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/market
-            docker compose down
-            docker compose up -d --build
+            docker-compose down
+            docker-compose up -d --build
+
